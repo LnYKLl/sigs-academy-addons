@@ -79,7 +79,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
     private static void registerCommands(CommandDispatcher<FabricClientCommandSource> dispatcher,
                                           CommandBuildContext registryAccess) {
         dispatcher.register(
-                ClientCommandManager.literal("sig")
+                ClientCommandManager.literal("saa")
                         .then(ClientCommandManager.literal("gui")
                                 .then(ClientCommandManager.literal("reset")
                                         .executes(context -> {

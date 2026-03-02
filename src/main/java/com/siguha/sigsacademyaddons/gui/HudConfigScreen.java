@@ -4,6 +4,7 @@ import com.siguha.sigsacademyaddons.config.HudConfig;
 import com.siguha.sigsacademyaddons.feature.safari.SafariHuntData;
 import com.siguha.sigsacademyaddons.feature.safari.SafariHuntManager;
 import com.siguha.sigsacademyaddons.feature.safari.SafariManager;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -14,22 +15,18 @@ import java.util.List;
 // drag-to-reposition and corner-resize screen for the safari hud panel
 public class HudConfigScreen extends Screen {
 
-    // layout constants — must match SafariHudRenderer
     private static final int PADDING = 4;
     private static final int LINE_HEIGHT = 11;
     private static final int SECTION_SPACING = 6;
     private static final int TIMER_BAR_HEIGHT = 11;
     private static final int PANEL_MIN_WIDTH = 140;
 
-    // corner handle size and grab radius
     private static final int CORNER_HANDLE_SIZE = 6;
     private static final int CORNER_GRAB_RADIUS = 8;
 
-    // scale limits
     private static final float MIN_SCALE = 0.5f;
     private static final float MAX_SCALE = 2.0f;
 
-    // colors
     private static final int COLOR_BG = 0xAA000000;
     private static final int COLOR_HEADER = 0xFFFFAA00;
     private static final int COLOR_TEXT = 0xFFFFFFFF;
@@ -47,17 +44,14 @@ public class HudConfigScreen extends Screen {
     private final SafariManager safariManager;
     private final SafariHuntManager safariHuntManager;
 
-    // unscaled panel dimensions (computed from current state)
     private int unscaledWidth;
     private int unscaledHeight;
 
     private float currentScale;
 
-    // scaled panel dimensions (screen-space)
     private int scaledWidth;
     private int scaledHeight;
 
-    // absolute screen coords
     private int panelX;
     private int panelY;
 
@@ -67,7 +61,6 @@ public class HudConfigScreen extends Screen {
     private int dragOffsetX = 0;
     private int dragOffsetY = 0;
 
-    // resize anchor = opposite corner of the one being dragged
     private int resizeAnchorX;
     private int resizeAnchorY;
     private boolean resizeFromLeft;
@@ -90,8 +83,7 @@ public class HudConfigScreen extends Screen {
         unscaledWidth = calculateActualWidth(showTimer, showHunts);
         unscaledHeight = calculateActualHeight(showTimer, showHunts);
 
-        // minimum size so the preview is always draggable
-        unscaledWidth = Math.max(unscaledWidth, 100);
+            unscaledWidth = Math.max(unscaledWidth, 100);
         unscaledHeight = Math.max(unscaledHeight, 40);
 
         currentScale = hudConfig.getHudScale();
@@ -122,14 +114,12 @@ public class HudConfigScreen extends Screen {
         int scaleWidth = this.font.width(scaleText);
         graphics.drawString(this.font, scaleText, (this.width - scaleWidth) / 2, 34, COLOR_TEXT, true);
 
-        // preview panel at current scale
         graphics.pose().pushPose();
         graphics.pose().translate(panelX, panelY, 0);
         graphics.pose().scale(currentScale, currentScale, 1.0f);
         renderPreviewPanel(graphics);
         graphics.pose().popPose();
 
-        // outline in screen-space
         int outlineColor = dragMode == DragMode.MOVE ? COLOR_OUTLINE_DRAG
                 : dragMode == DragMode.RESIZE ? COLOR_CORNER_HOVER
                 : COLOR_OUTLINE;
@@ -138,7 +128,6 @@ public class HudConfigScreen extends Screen {
         drawCornerHandles(graphics, mouseX, mouseY);
     }
 
-    // draws 1px outline around the panel in screen space
     private void drawOutline(GuiGraphics graphics, int x, int y, int w, int h, int color) {
         graphics.fill(x - 1, y - 1, x + w + 1, y, color);
         graphics.fill(x - 1, y + h, x + w + 1, y + h + 1, color);
@@ -146,7 +135,6 @@ public class HudConfigScreen extends Screen {
         graphics.fill(x + w, y - 1, x + w + 1, y + h + 1, color);
     }
 
-    // draws corner handles that highlight on hover
     private void drawCornerHandles(GuiGraphics graphics, int mouseX, int mouseY) {
         int[][] corners = {
                 {panelX, panelY},                               // Top-left
@@ -164,7 +152,6 @@ public class HudConfigScreen extends Screen {
         }
     }
 
-    // renders preview panel content at (0,0) in unscaled space
     private void renderPreviewPanel(GuiGraphics graphics) {
         boolean transparent = hudConfig.getHudStyle() == HudConfig.HudStyle.TRANSPARENT;
 
@@ -177,12 +164,10 @@ public class HudConfigScreen extends Screen {
         boolean showTimer = safariManager.isInSafari();
         boolean showHunts = safariHuntManager.hasActiveHunts();
 
-        // placeholder preview when nothing active
         if (!showTimer && !showHunts) {
             graphics.drawString(this.font, "SAA Safari Helper", PADDING, y, COLOR_HEADER, true);
             y += LINE_HEIGHT;
 
-            // placeholder timer bar with centered text
             int barWidth = unscaledWidth - (PADDING * 2);
             graphics.fill(PADDING, y, PADDING + barWidth, y + TIMER_BAR_HEIGHT, 0xFF333333);
             int filledWidth = (int) (barWidth * 0.82f);
@@ -194,7 +179,6 @@ public class HudConfigScreen extends Screen {
             graphics.drawString(this.font, placeholderTimer, timerTextX, timerTextY, COLOR_TEXT, true);
             y += TIMER_BAR_HEIGHT;
 
-            // no quests message
             y += SECTION_SPACING;
             int maxTextWidth = unscaledWidth - PADDING * 2;
             for (String line : wrapText(this.font, NO_QUESTS_MESSAGE, maxTextWidth)) {
@@ -205,7 +189,6 @@ public class HudConfigScreen extends Screen {
             return;
         }
 
-        // timer section
         if (showTimer) {
             String header = safariManager.isInSafariZone() ? "SAA Safari Helper" : "SAA Safari Helper (away)";
             graphics.drawString(this.font, header, PADDING, y, COLOR_HEADER, true);
@@ -233,7 +216,6 @@ public class HudConfigScreen extends Screen {
                 graphics.fill(PADDING, y, PADDING + barWidth, y + 1, 0xFF555555);
                 y += SECTION_SPACING;
             } else {
-                // no quests message
                 y += SECTION_SPACING;
                 int maxTextWidth = unscaledWidth - PADDING * 2;
                 for (String line : wrapText(this.font, NO_QUESTS_MESSAGE, maxTextWidth)) {
@@ -244,14 +226,12 @@ public class HudConfigScreen extends Screen {
             }
         }
 
-        // hunt section
         if (showHunts) {
             graphics.drawString(this.font, "Active Hunts", PADDING, y, COLOR_HEADER, true);
             y += LINE_HEIGHT + 2;
 
             List<SafariHuntData> hunts = safariHuntManager.getActiveHunts();
             for (SafariHuntData hunt : hunts) {
-                // hunt name with star rating
                 int nameX = PADDING;
                 if (hunt.getStarRating() > 0) {
                     String stars = "*".repeat(hunt.getStarRating());
@@ -262,7 +242,6 @@ public class HudConfigScreen extends Screen {
                 int nameColor = hunt.isComplete() ? COLOR_PROGRESS_COMPLETE : COLOR_TEXT;
                 graphics.drawString(this.font, hunt.getDisplayName(), nameX, y, nameColor, true);
 
-                // reset countdown (right-aligned)
                 String resetText = hunt.getResetCountdownFormatted();
                 if (!resetText.isEmpty()) {
                     int resetColor = hunt.isResetExpired() ? 0xFFFF5555 : 0xFFFF8855;
@@ -293,8 +272,6 @@ public class HudConfigScreen extends Screen {
         }
     }
 
-    // dimension calculations (must match SafariHudRenderer)
-
     private int calculateActualWidth(boolean showTimer, boolean showHunts) {
         int maxWidth = PANEL_MIN_WIDTH;
 
@@ -318,16 +295,13 @@ public class HudConfigScreen extends Screen {
     }
 
     private int calculateActualHeight(boolean showTimer, boolean showHunts) {
-        int panelWidth = calculateActualWidth(showTimer, showHunts);
-        int maxTextWidth = Math.max(panelWidth - PADDING * 2, 1);
-        int messageLines = wrapText(this.font, NO_QUESTS_MESSAGE, maxTextWidth).size();
-
-        // default preview size when nothing active
-        if (!showTimer && !showHunts) {
-            return PADDING + LINE_HEIGHT + TIMER_BAR_HEIGHT + SECTION_SPACING + LINE_HEIGHT * messageLines + PADDING;
-        }
-
         int height = PADDING;
+
+        if (!showTimer && !showHunts) {
+            int panelWidth = calculateActualWidth(showTimer, showHunts);
+            int messageLines = wrapText(this.font, NO_QUESTS_MESSAGE, Math.max(panelWidth - PADDING * 2, 1)).size();
+            return height + LINE_HEIGHT + TIMER_BAR_HEIGHT + SECTION_SPACING + LINE_HEIGHT * messageLines + PADDING;
+        }
 
         if (showTimer) {
             height += LINE_HEIGHT;
@@ -339,9 +313,11 @@ public class HudConfigScreen extends Screen {
         }
 
         if (showHunts) {
-            height += LINE_HEIGHT + 2; // "active hunts" header
+            height += LINE_HEIGHT + 2;
             height += safariHuntManager.getActiveHunts().size() * (LINE_HEIGHT * 2);
         } else if (showTimer) {
+            int panelWidth = calculateActualWidth(showTimer, showHunts);
+            int messageLines = wrapText(this.font, NO_QUESTS_MESSAGE, Math.max(panelWidth - PADDING * 2, 1)).size();
             height += SECTION_SPACING + LINE_HEIGHT * messageLines;
         }
 
@@ -398,7 +374,6 @@ public class HudConfigScreen extends Screen {
         }
 
         if (dragMode == DragMode.RESIZE) {
-            // new scale from anchor-to-mouse distance along width axis
             float distX;
             if (resizeFromLeft) {
                 distX = resizeAnchorX - mx;
@@ -408,7 +383,6 @@ public class HudConfigScreen extends Screen {
 
             float newScale = distX / unscaledWidth;
 
-            // cap scale so panel fits screen
             float maxFitScale = Math.min(
                     (float) this.width / unscaledWidth,
                     (float) this.height / unscaledHeight
@@ -418,7 +392,6 @@ public class HudConfigScreen extends Screen {
             currentScale = newScale;
             updateScaledDimensions();
 
-            // keep anchor corner fixed
             if (resizeFromLeft) {
                 panelX = resizeAnchorX - scaledWidth;
             } else {
@@ -430,7 +403,6 @@ public class HudConfigScreen extends Screen {
                 panelY = resizeAnchorY;
             }
 
-            // clamp to screen bounds
             panelX = Math.clamp(panelX, 0, Math.max(0, this.width - scaledWidth));
             panelY = Math.clamp(panelY, 0, Math.max(0, this.height - scaledHeight));
 
@@ -454,7 +426,6 @@ public class HudConfigScreen extends Screen {
 
     private record CornerHit(boolean fromLeft, boolean fromTop) {}
 
-    // returns which corner was hit for resize, or null
     private CornerHit getCornerHit(int mx, int my) {
         if (isNearPoint(mx, my, panelX, panelY, CORNER_GRAB_RADIUS)) {
             return new CornerHit(true, true);
@@ -480,7 +451,7 @@ public class HudConfigScreen extends Screen {
         return Math.abs(mx - px) <= radius && Math.abs(my - py) <= radius;
     }
     
-    private static List<String> wrapText(net.minecraft.client.gui.Font font, String text, int maxWidth) {
+    private static List<String> wrapText(Font font, String text, int maxWidth) {
         List<String> lines = new ArrayList<>();
         String[] words = text.split(" ");
         StringBuilder current = new StringBuilder();

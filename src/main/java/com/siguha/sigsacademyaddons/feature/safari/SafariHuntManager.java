@@ -32,7 +32,6 @@ public class SafariHuntManager {
 
     public SafariHuntManager(HuntDataStore dataStore) {
         this.dataStore = dataStore;
-        // load persisted hunts, remove expired ones
         this.activeHunts = dataStore.load();
         int before = activeHunts.size();
         activeHunts.removeIf(SafariHuntData::isResetExpired);
@@ -46,7 +45,6 @@ public class SafariHuntManager {
         }
     }
 
-    // removes expired hunts periodically (~every 5 seconds)
     public void tick() {
         if (activeHunts.isEmpty()) return;
 
@@ -54,15 +52,14 @@ public class SafariHuntManager {
         if (expirationCheckCooldown > 0) return;
         expirationCheckCooldown = 100;
 
-        boolean anyExpired = activeHunts.stream().anyMatch(SafariHuntData::isResetExpired);
-        if (anyExpired) {
-            activeHunts.removeIf(SafariHuntData::isResetExpired);
+        int before = activeHunts.size();
+        activeHunts.removeIf(SafariHuntData::isResetExpired);
+        if (activeHunts.size() < before) {
             dataStore.save(activeHunts);
             SigsAcademyAddons.LOGGER.info("[sig Safari] Removed expired hunts — {} remaining", activeHunts.size());
         }
     }
 
-    // called when the hunts npc screen is scraped, parses items into hunt data
     public void onHuntsScreenScraped(List<ScreenInterceptor.ScrapedHuntItem> scrapedItems) {
         List<SafariHuntData> parsedHunts = new ArrayList<>();
 
@@ -87,19 +84,16 @@ public class SafariHuntManager {
         }
     }
 
-    // tracks unattributed hunt progress messages until next screen scrape
     public void onHuntProgressUpdate() {
         pendingUpdates++;
         SigsAcademyAddons.LOGGER.info("[sig Safari] Hunt progress updated! ({} pending — open HUNTS NPC to refresh)",
                 pendingUpdates);
     }
 
-    // pending hunt progress updates since last screen scrape
     public int getPendingUpdates() {
         return pendingUpdates;
     }
 
-    // matches a caught pokemon's types/egg groups against active hunts
     public void onPokemonCaught(CatchDetector.CaughtPokemonInfo catchInfo) {
         if (activeHunts.isEmpty()) {
             return;
@@ -108,7 +102,6 @@ public class SafariHuntManager {
         SigsAcademyAddons.LOGGER.debug("[sig Safari] Correlating catch: {} (types={}, eggGroups={})",
                 catchInfo.speciesName(), catchInfo.types(), catchInfo.eggGroups());
 
-        // find hunts matching this pokemon's types or egg groups
         List<SafariHuntData> matchingHunts = new ArrayList<>();
 
         for (SafariHuntData hunt : activeHunts) {
@@ -127,28 +120,23 @@ public class SafariHuntManager {
             return;
         }
 
-        // increment matching hunts
         for (SafariHuntData hunt : matchingHunts) {
             hunt.incrementCaught();
             SigsAcademyAddons.LOGGER.debug("[sig Safari] Incremented hunt '{}' → {}",
                     hunt.getDisplayName(), hunt.getProgressString());
         }
 
-        // catch attributed, decrement pending counter
         if (pendingUpdates > 0) {
             pendingUpdates--;
             SigsAcademyAddons.LOGGER.debug("[sig Safari] Catch attributed — pending updates: {}", pendingUpdates);
         }
 
-        // persist changes
         dataStore.save(activeHunts);
     }
 
-    // checks whether a caught pokemon matches a hunt's type or egg group targets
     private boolean doesCatchMatchHunt(CatchDetector.CaughtPokemonInfo catchInfo, SafariHuntData hunt) {
         switch (hunt.getCategory()) {
             case TYPE:
-                // match any pokemon type against hunt targets
                 for (String target : hunt.getTargets()) {
                     for (String pokemonType : catchInfo.types()) {
                         if (pokemonType.equalsIgnoreCase(target.trim())) {
@@ -195,12 +183,10 @@ public class SafariHuntManager {
         dataStore.save(activeHunts);
     }
 
-    // parses a scraped item into a safari hunt data object
     private SafariHuntData parseHuntItem(ScreenInterceptor.ScrapedHuntItem item) {
         String displayName = item.name();
         List<String> loreLines = item.loreLines();
 
-        // parse caught/total from lore
         int caught = 0;
         int total = 0;
         String resetTimeText = "";
@@ -208,7 +194,6 @@ public class SafariHuntManager {
         boolean inRewardsSection = false;
 
         for (String line : loreLines) {
-            // strip formatting codes
             String cleanLine = stripFormatting(line);
 
             Matcher caughtMatcher = CAUGHT_PATTERN.matcher(cleanLine);
@@ -234,13 +219,11 @@ public class SafariHuntManager {
             }
         }
 
-        // parse display name to determine category and targets
         String cleanName = stripFormatting(displayName);
 
         int stars = countStars(cleanName);
         String nameWithoutStars = STAR_PATTERN.matcher(cleanName).replaceAll("").trim();
 
-        // determine category and targets
         SafariHuntData.HuntCategory category;
         List<String> targets;
 
@@ -262,7 +245,6 @@ public class SafariHuntManager {
             targets = List.of(nameWithoutStars);
         }
 
-        // convert reset text to absolute timestamp (rounded down 5s for network delay)
         long resetEndTimeMs = parseResetTimeToAbsolute(resetTimeText);
 
         return new SafariHuntData(
@@ -271,7 +253,6 @@ public class SafariHuntManager {
         );
     }
 
-    // parses "00h 17m 45s" into absolute timestamp, rounds down 5s for network delay
     private static long parseResetTimeToAbsolute(String resetTimeText) {
         if (resetTimeText == null || resetTimeText.isEmpty()) return 0;
 

@@ -16,7 +16,6 @@ import java.util.List;
 // renders safari hud overlay with countdown timer and hunt tracker
 public class SafariHudRenderer {
 
-    // layout constants
     private static final int PADDING = 4;
     private static final int LINE_HEIGHT = 11;
     private static final int SECTION_SPACING = 6;
@@ -73,7 +72,7 @@ public class SafariHudRenderer {
         float scale = hudConfig.getHudScale();
         boolean transparent = hudConfig.getHudStyle() == HudConfig.HudStyle.TRANSPARENT;
 
-        int panelWidth = calculatePanelWidth(font, showTimer, showHunts);
+        int panelWidth = calculatePanelWidth(font, showTimer);
         int panelHeight = calculatePanelHeight(font, panelWidth, showTimer, showHunts);
 
         int scaledWidth = Math.round(panelWidth * scale);
@@ -86,14 +85,12 @@ public class SafariHudRenderer {
         graphics.pose().translate(panelX, panelY, 0);
         graphics.pose().scale(scale, scale, 1.0f);
 
-        // background for solid 
         if (!transparent) {
             graphics.fill(0, 0, panelWidth, panelHeight, COLOR_BG);
         }
 
         int currentY = PADDING;
 
-        // timer section
         if (showTimer) {
             currentY = renderTimerSection(graphics, font, currentY, panelWidth);
 
@@ -235,7 +232,7 @@ public class SafariHudRenderer {
         }
     }
 
-    private int calculatePanelWidth(Font font, boolean showTimer, boolean showHunts) {
+    private int calculatePanelWidth(Font font, boolean showTimer) {
         int maxWidth = PANEL_MIN_WIDTH;
 
         for (SafariHuntData hunt : safariHuntManager.getActiveHunts()) {

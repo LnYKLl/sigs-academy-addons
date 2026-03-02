@@ -80,7 +80,6 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                           CommandBuildContext registryAccess) {
         dispatcher.register(
                 ClientCommandManager.literal("sig")
-                        // gui
                         .then(ClientCommandManager.literal("gui")
                                 .then(ClientCommandManager.literal("reset")
                                         .executes(context -> {
@@ -103,7 +102,6 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                     return 1;
                                 })
                         )
-                        // safari subcds
                         .then(ClientCommandManager.literal("safari")
                                 .then(ClientCommandManager.literal("clear")
                                         .executes(context -> {
@@ -135,7 +133,6 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                     return 1;
                                 })
                         )
-                        // config subcds
                         .then(ClientCommandManager.literal("config")
                                 .then(ClientCommandManager.literal("safariTimerAlways")
                                         .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
@@ -150,7 +147,6 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                                 })
                                         )
                                         .executes(context -> {
-                                            // show current value
                                             boolean current = hudConfig.isSafariTimerAlways();
                                             context.getSource().sendFeedback(Component.literal(
                                                     "\u00A77safariTimerAlways = \u00A7f" + current +
@@ -224,7 +220,6 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                         })
                                 )
                                 .executes(context -> {
-                                    // show all config values
                                     context.getSource().sendFeedback(Component.literal(
                                             "\u00A76Configuration:\n" +
                                             "\u00A77safariTimerAlways = \u00A7f" + hudConfig.isSafariTimerAlways() +
@@ -238,7 +233,6 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                     return 1;
                                 })
                         )
-                        // show help
                         .executes(context -> {
                             context.getSource().sendFeedback(Component.literal(
                                     "\u00A76Sigs Academy Addons Commands:\n" +

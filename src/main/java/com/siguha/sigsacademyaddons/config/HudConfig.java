@@ -16,7 +16,6 @@ public class HudConfig {
     private static final String CONFIG_FILE = "hud-config.json";
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    // hud anchor corner, offsets are relative to this
     public enum Anchor {
         TOP_LEFT,
         TOP_RIGHT,
@@ -24,7 +23,6 @@ public class HudConfig {
         BOTTOM_RIGHT
     }
 
-    // hud visual style: solid background or transparent overlay
     public enum HudStyle {
         SOLID,
         TRANSPARENT
@@ -100,7 +98,6 @@ public class HudConfig {
         return offsetY;
     }
 
-    // calculates panel x from anchor and offset
     public int getPanelX(int screenWidth, int panelWidth) {
         return switch (anchor) {
             case TOP_LEFT, BOTTOM_LEFT -> offsetX;
@@ -108,7 +105,6 @@ public class HudConfig {
         };
     }
 
-    // calculates panel y from anchor and offset
     public int getPanelY(int screenHeight, int panelHeight) {
         return switch (anchor) {
             case TOP_LEFT, TOP_RIGHT -> offsetY;
@@ -116,7 +112,6 @@ public class HudConfig {
         };
     }
 
-    // sets position from absolute coords, auto-determines best anchor quadrant
     public void setPositionFromAbsolute(int panelX, int panelY, int panelWidth, int panelHeight,
                                          int screenWidth, int screenHeight) {
         int centerX = panelX + panelWidth / 2;
@@ -182,7 +177,6 @@ public class HudConfig {
                     this.offsetY = data.offsetY;
                     this.safariTimerAlways = data.safariTimerAlways;
                     this.hudScale = data.hudScale > 0 ? data.hudScale : 1.0f;
-                    // null = missing from old config, default true
                     this.safariQuestMonGlow = data.safariQuestMonGlow != null ? data.safariQuestMonGlow : true;
                     this.safariQuestMonTracers = data.safariQuestMonTracers != null ? data.safariQuestMonTracers : true;
                     this.hudStyle = data.hudStyle != null ? HudStyle.valueOf(data.hudStyle) : HudStyle.SOLID;

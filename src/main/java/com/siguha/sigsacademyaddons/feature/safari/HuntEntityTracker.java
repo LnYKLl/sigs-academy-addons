@@ -8,8 +8,12 @@ import com.siguha.sigsacademyaddons.config.HudConfig;
 import com.siguha.sigsacademyaddons.data.EggGroupLookup;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 
 import java.util.*;
 
@@ -31,6 +35,7 @@ public class HuntEntityTracker {
 
     // volatile for thread-safe access from render thread: entityId to 0xRRGGBB
     private volatile Map<Integer, Integer> matchedEntities = Collections.emptyMap();
+    private volatile Set<Integer> visibleEntities = Collections.emptySet();
 
     public HuntEntityTracker(SafariManager safariManager,
                              SafariHuntManager safariHuntManager,
@@ -49,6 +54,7 @@ public class HuntEntityTracker {
         if (!hudConfig.isSafariQuestMonGlow() && !hudConfig.isSafariQuestMonTracers()) {
             if (!matchedEntities.isEmpty()) {
                 matchedEntities = Collections.emptyMap();
+                visibleEntities = Collections.emptySet();
             }
             return;
         }
@@ -57,6 +63,7 @@ public class HuntEntityTracker {
         if (!safariManager.isInSafariZone()) {
             if (!matchedEntities.isEmpty()) {
                 matchedEntities = Collections.emptyMap();
+                visibleEntities = Collections.emptySet();
             }
             return;
         }
@@ -65,6 +72,7 @@ public class HuntEntityTracker {
         if (!safariHuntManager.hasActiveHunts()) {
             if (!matchedEntities.isEmpty()) {
                 matchedEntities = Collections.emptyMap();
+                visibleEntities = Collections.emptySet();
             }
             return;
         }
@@ -87,6 +95,7 @@ public class HuntEntityTracker {
         if (incompleteHunts.isEmpty()) {
             if (!matchedEntities.isEmpty()) {
                 matchedEntities = Collections.emptyMap();
+                visibleEntities = Collections.emptySet();
             }
             return;
         }
@@ -135,6 +144,20 @@ public class HuntEntityTracker {
         }
 
         matchedEntities = newMatches;
+
+        // los compute for rendering entity glow
+        Set<Integer> newVisible = new HashSet<>();
+        Vec3 playerEye = player.getEyePosition(1.0f);
+        for (int entityId : newMatches.keySet()) {
+            Entity entity = level.getEntity(entityId);
+            if (entity == null) continue;
+            ClipContext ctx = new ClipContext(playerEye, entity.getEyePosition(1.0f),
+                    ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player);
+            if (level.clip(ctx).getType() == HitResult.Type.MISS) {
+                newVisible.add(entityId);
+            }
+        }
+        visibleEntities = newVisible;
     }
 
     // checks if entity types/egg groups match a hunt (mirrors SafariHuntManager logic)
@@ -170,6 +193,11 @@ public class HuntEntityTracker {
     // whether entity is matched (called from glow mixin on render thread)
     public boolean isMatched(int entityId) {
         return matchedEntities.containsKey(entityId);
+    }
+
+    // whether player has unobstructed los to entity (updated every ~1s)
+    public boolean hasLineOfSight(int entityId) {
+        return visibleEntities.contains(entityId);
     }
 
     // returns color for matched entity or -1 (called from color mixin on render thread)

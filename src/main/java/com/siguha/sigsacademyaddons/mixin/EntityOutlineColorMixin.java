@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// overrides outline color for hunt-matching pokemon using per-quest-slot palette
+// applying quest color to outline
 @Mixin(Entity.class)
 public abstract class EntityOutlineColorMixin {
 
@@ -22,7 +22,7 @@ public abstract class EntityOutlineColorMixin {
 
         Entity self = (Entity) (Object) this;
         int color = tracker.getColor(self.getId());
-        if (color != -1) {
+        if (color != -1 && tracker.hasLineOfSight(self.getId())) {
             cir.setReturnValue(color);
         }
     }

@@ -4,16 +4,19 @@ import com.siguha.sigsacademyaddons.SigsAcademyAddons;
 import com.siguha.sigsacademyaddons.feature.daycare.DaycareManager;
 import com.siguha.sigsacademyaddons.feature.safari.SafariHuntManager;
 import com.siguha.sigsacademyaddons.feature.safari.SafariManager;
+import com.siguha.sigsacademyaddons.feature.wondertrade.WondertradeManager;
 import net.minecraft.network.chat.Component;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-
 public class ChatMessageHandler {
 
     private static final Pattern SAFARI_ENTRY_PATTERN = Pattern.compile(
             "You have used a Safari Ticket for a (\\d+) minute Safari Zone entry!"
+    );
+    private static final Pattern WT_COOLDOWN_PATTERN = Pattern.compile(
+            "You are on cooldown for (\\d+) minutes?"
     );
 
     private static final String HUNT_PROGRESS_MESSAGE = "Safari Hunt progress updated!";
@@ -24,13 +27,16 @@ public class ChatMessageHandler {
     private final SafariHuntManager safariHuntManager;
     private final CatchDetector catchDetector;
     private final DaycareManager daycareManager;
+    private final WondertradeManager wondertradeManager;
 
     public ChatMessageHandler(SafariManager safariManager, SafariHuntManager safariHuntManager,
-                              CatchDetector catchDetector, DaycareManager daycareManager) {
+                              CatchDetector catchDetector, DaycareManager daycareManager,
+                              WondertradeManager wondertradeManager) {
         this.safariManager = safariManager;
         this.safariHuntManager = safariHuntManager;
         this.catchDetector = catchDetector;
         this.daycareManager = daycareManager;
+        this.wondertradeManager = wondertradeManager;
     }
 
     public void onGameMessage(Component message, boolean overlay) {
@@ -66,6 +72,17 @@ public class ChatMessageHandler {
 
         if (text.contains(EGG_HATCHED_MESSAGE)) {
             daycareManager.onEggHatched();
+            return;
+        }
+
+        Matcher wtMatcher = WT_COOLDOWN_PATTERN.matcher(text);
+        if (wtMatcher.find()) {
+            try {
+                int minutes = Integer.parseInt(wtMatcher.group(1));
+                wondertradeManager.onCooldownMessage(minutes);
+            } catch (NumberFormatException e) {
+                SigsAcademyAddons.LOGGER.warn("[SAA WT] Failed to parse cooldown minutes from: {}", text);
+            }
             return;
         }
     }

@@ -34,7 +34,6 @@ public class HudConfig {
     private boolean safariTimerAlways = true;
     private float hudScale = 1.0f;
     private boolean safariQuestMonGlow = true;
-    private boolean safariQuestMonTracers = true;
     private HudStyle hudStyle = HudStyle.SOLID;
     private boolean safariMenuEnabled = true;
 
@@ -46,6 +45,15 @@ public class HudConfig {
     private int daycareOffsetY = 5;
     private float daycareScale = 1.0f;
     private int daycareEggsHatchingSlots = 5;
+
+    // wondertrade settings
+    private boolean wtMenuEnabled = true;
+    private boolean wtShowChatReminders = true;
+    private boolean wtSoundsEnabled = true;
+    private Anchor wtAnchor = Anchor.BOTTOM_RIGHT;
+    private int wtOffsetX = 5;
+    private int wtOffsetY = 5;
+    private float wtScale = 1.0f;
 
     public HudConfig() {
         load();
@@ -75,15 +83,6 @@ public class HudConfig {
 
     public void setSafariQuestMonGlow(boolean safariQuestMonGlow) {
         this.safariQuestMonGlow = safariQuestMonGlow;
-        save();
-    }
-
-    public boolean isSafariQuestMonTracers() {
-        return safariQuestMonTracers;
-    }
-
-    public void setSafariQuestMonTracers(boolean safariQuestMonTracers) {
-        this.safariQuestMonTracers = safariQuestMonTracers;
         save();
     }
 
@@ -164,6 +163,100 @@ public class HudConfig {
 
     public void setDaycareEggsHatchingSlots(int daycareEggsHatchingSlots) {
         this.daycareEggsHatchingSlots = Math.max(0, Math.min(5, daycareEggsHatchingSlots));
+        save();
+    }
+
+    public boolean isWtMenuEnabled() {
+        return wtMenuEnabled;
+    }
+
+    public void setWtMenuEnabled(boolean wtMenuEnabled) {
+        this.wtMenuEnabled = wtMenuEnabled;
+        save();
+    }
+
+    public boolean isWtShowChatReminders() {
+        return wtShowChatReminders;
+    }
+
+    public void setWtShowChatReminders(boolean wtShowChatReminders) {
+        this.wtShowChatReminders = wtShowChatReminders;
+        save();
+    }
+
+    public boolean isWtSoundsEnabled() {
+        return wtSoundsEnabled;
+    }
+
+    public void setWtSoundsEnabled(boolean wtSoundsEnabled) {
+        this.wtSoundsEnabled = wtSoundsEnabled;
+        save();
+    }
+
+    public Anchor getWtAnchor() {
+        return wtAnchor;
+    }
+
+    public int getWtOffsetX() {
+        return wtOffsetX;
+    }
+
+    public int getWtOffsetY() {
+        return wtOffsetY;
+    }
+
+    public int getWtPanelX(int screenWidth, int panelWidth) {
+        return switch (wtAnchor) {
+            case TOP_LEFT, BOTTOM_LEFT -> wtOffsetX;
+            case TOP_RIGHT, BOTTOM_RIGHT -> screenWidth - panelWidth - wtOffsetX;
+        };
+    }
+
+    public int getWtPanelY(int screenHeight, int panelHeight) {
+        return switch (wtAnchor) {
+            case TOP_LEFT, TOP_RIGHT -> wtOffsetY;
+            case BOTTOM_LEFT, BOTTOM_RIGHT -> screenHeight - panelHeight - wtOffsetY;
+        };
+    }
+
+    public float getWtScale() {
+        return wtScale;
+    }
+
+    public void setWtScale(float wtScale) {
+        this.wtScale = Math.max(0.5f, Math.min(2.0f, wtScale));
+        save();
+    }
+
+    public void setWtPositionFromAbsolute(int panelX, int panelY, int panelWidth, int panelHeight,
+                                           int screenWidth, int screenHeight) {
+        int centerX = panelX + panelWidth / 2;
+        int centerY = panelY + panelHeight / 2;
+
+        boolean leftHalf = centerX < screenWidth / 2;
+        boolean topHalf = centerY < screenHeight / 2;
+
+        if (topHalf && leftHalf) {
+            wtAnchor = Anchor.TOP_LEFT;
+            wtOffsetX = panelX;
+            wtOffsetY = panelY;
+        } else if (topHalf) {
+            wtAnchor = Anchor.TOP_RIGHT;
+            wtOffsetX = screenWidth - panelX - panelWidth;
+            wtOffsetY = panelY;
+        } else if (leftHalf) {
+            wtAnchor = Anchor.BOTTOM_LEFT;
+            wtOffsetX = panelX;
+            wtOffsetY = screenHeight - panelY - panelHeight;
+        } else {
+            wtAnchor = Anchor.BOTTOM_RIGHT;
+            wtOffsetX = screenWidth - panelX - panelWidth;
+            wtOffsetY = screenHeight - panelY - panelHeight;
+        }
+
+        wtOffsetX = Math.max(0, wtOffsetX);
+        wtOffsetY = Math.max(0, wtOffsetY);
+
         save();
     }
 
@@ -264,10 +357,12 @@ public class HudConfig {
             Files.createDirectories(filePath.getParent());
 
             ConfigData data = new ConfigData(anchor.name(), offsetX, offsetY, safariTimerAlways, hudScale,
-                    safariQuestMonGlow, safariQuestMonTracers, hudStyle.name(), safariMenuEnabled,
+                    safariQuestMonGlow, hudStyle.name(), safariMenuEnabled,
                     daycareMenuEnabled, daycareSoundsEnabled,
                     daycareAnchor.name(), daycareOffsetX, daycareOffsetY,
-                    daycareScale, daycareEggsHatchingSlots);
+                    daycareScale, daycareEggsHatchingSlots,
+                    wtMenuEnabled, wtShowChatReminders, wtSoundsEnabled,
+                    wtAnchor.name(), wtOffsetX, wtOffsetY, wtScale);
             try (Writer writer = Files.newBufferedWriter(filePath)) {
                 GSON.toJson(data, writer);
             }
@@ -294,7 +389,6 @@ public class HudConfig {
                     this.safariTimerAlways = data.safariTimerAlways;
                     this.hudScale = data.hudScale > 0 ? data.hudScale : 1.0f;
                     this.safariQuestMonGlow = data.safariQuestMonGlow != null ? data.safariQuestMonGlow : true;
-                    this.safariQuestMonTracers = data.safariQuestMonTracers != null ? data.safariQuestMonTracers : true;
                     this.hudStyle = data.hudStyle != null ? HudStyle.valueOf(data.hudStyle) : HudStyle.SOLID;
                     this.safariMenuEnabled = data.safariMenuEnabled != null ? data.safariMenuEnabled : true;
                     this.daycareMenuEnabled = data.daycareMenuEnabled != null ? data.daycareMenuEnabled : true;
@@ -304,6 +398,13 @@ public class HudConfig {
                     this.daycareOffsetY = data.daycareOffsetY != null ? data.daycareOffsetY : 5;
                     this.daycareScale = data.daycareScale != null && data.daycareScale > 0 ? data.daycareScale : 1.0f;
                     this.daycareEggsHatchingSlots = data.daycareEggsHatchingSlots != null ? data.daycareEggsHatchingSlots : 5;
+                    this.wtMenuEnabled = data.wtMenuEnabled != null ? data.wtMenuEnabled : true;
+                    this.wtShowChatReminders = data.wtShowChatReminders != null ? data.wtShowChatReminders : true;
+                    this.wtSoundsEnabled = data.wtSoundsEnabled != null ? data.wtSoundsEnabled : true;
+                    this.wtAnchor = data.wtAnchor != null ? Anchor.valueOf(data.wtAnchor) : Anchor.BOTTOM_RIGHT;
+                    this.wtOffsetX = data.wtOffsetX != null ? data.wtOffsetX : 5;
+                    this.wtOffsetY = data.wtOffsetY != null ? data.wtOffsetY : 5;
+                    this.wtScale = data.wtScale != null && data.wtScale > 0 ? data.wtScale : 1.0f;
                     SigsAcademyAddons.LOGGER.info("[HudConfig] Loaded HUD position: anchor={}, offsetX={}, offsetY={}",
                             anchor, offsetX, offsetY);
                 }
@@ -320,10 +421,12 @@ public class HudConfig {
     }
 
     private record ConfigData(String anchor, int offsetX, int offsetY, boolean safariTimerAlways, float hudScale,
-                               Boolean safariQuestMonGlow, Boolean safariQuestMonTracers, String hudStyle,
+                               Boolean safariQuestMonGlow, String hudStyle,
                                Boolean safariMenuEnabled,
                                Boolean daycareMenuEnabled, Boolean daycareSoundsEnabled,
                                String daycareAnchor, Integer daycareOffsetX, Integer daycareOffsetY,
-                               Float daycareScale, Integer daycareEggsHatchingSlots) {
+                               Float daycareScale, Integer daycareEggsHatchingSlots,
+                               Boolean wtMenuEnabled, Boolean wtShowChatReminders, Boolean wtSoundsEnabled,
+                               String wtAnchor, Integer wtOffsetX, Integer wtOffsetY, Float wtScale) {
     }
 }

@@ -6,6 +6,7 @@ import com.siguha.sigsacademyaddons.feature.daycare.DaycareState;
 import com.siguha.sigsacademyaddons.feature.safari.SafariHuntData;
 import com.siguha.sigsacademyaddons.feature.safari.SafariHuntManager;
 import com.siguha.sigsacademyaddons.feature.safari.SafariManager;
+import com.siguha.sigsacademyaddons.feature.wondertrade.WondertradeManager;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
@@ -46,10 +47,13 @@ public class HudConfigScreen extends Screen {
 
     private static final String NO_QUESTS_MESSAGE = "Please visit the Safari Hunt NPC and load your hunt menu.";
 
+    private static final int COLOR_OUTLINE_WT = 0xFF55FF55;
+
     private final HudConfig hudConfig;
     private final SafariManager safariManager;
     private final SafariHuntManager safariHuntManager;
     private final DaycareManager daycareManager;
+    private final WondertradeManager wondertradeManager;
 
     static class PanelState {
         String name;
@@ -70,6 +74,7 @@ public class HudConfigScreen extends Screen {
 
     private PanelState safariPanel;
     private PanelState daycarePanel;
+    private PanelState wtPanel;
 
     private enum DragMode { NONE, MOVE, RESIZE }
     private DragMode dragMode = DragMode.NONE;
@@ -84,12 +89,14 @@ public class HudConfigScreen extends Screen {
     private boolean resizeFromTop;
 
     public HudConfigScreen(HudConfig hudConfig, SafariManager safariManager,
-                            SafariHuntManager safariHuntManager, DaycareManager daycareManager) {
+                            SafariHuntManager safariHuntManager, DaycareManager daycareManager,
+                            WondertradeManager wondertradeManager) {
         super(Component.literal("HUD Position"));
         this.hudConfig = hudConfig;
         this.safariManager = safariManager;
         this.safariHuntManager = safariHuntManager;
         this.daycareManager = daycareManager;
+        this.wondertradeManager = wondertradeManager;
     }
 
     @Override
@@ -119,6 +126,16 @@ public class HudConfigScreen extends Screen {
         daycarePanel.updateScaledDimensions();
         daycarePanel.panelX = hudConfig.getDaycarePanelX(this.width, daycarePanel.scaledWidth);
         daycarePanel.panelY = hudConfig.getDaycarePanelY(this.height, daycarePanel.scaledHeight);
+
+        wtPanel = new PanelState("Wondertrade");
+        wtPanel.unscaledWidth = calculateWtWidth();
+        wtPanel.unscaledHeight = calculateWtHeight();
+        wtPanel.unscaledWidth = Math.max(wtPanel.unscaledWidth, 100);
+        wtPanel.unscaledHeight = Math.max(wtPanel.unscaledHeight, 40);
+        wtPanel.currentScale = hudConfig.getWtScale();
+        wtPanel.updateScaledDimensions();
+        wtPanel.panelX = hudConfig.getWtPanelX(this.width, wtPanel.scaledWidth);
+        wtPanel.panelY = hudConfig.getWtPanelY(this.height, wtPanel.scaledHeight);
     }
 
     @Override
@@ -134,51 +151,47 @@ public class HudConfigScreen extends Screen {
         int hintWidth = this.font.width(hint);
         graphics.drawString(this.font, hint, (this.width - hintWidth) / 2, 22, COLOR_HINT, true);
 
-        String scaleText = String.format("Safari: %.0f%% | Daycare: %.0f%%",
-                safariPanel.currentScale * 100, daycarePanel.currentScale * 100);
+        String scaleText = String.format("Safari: %.0f%% | Daycare: %.0f%% | WT: %.0f%%",
+                safariPanel.currentScale * 100, daycarePanel.currentScale * 100, wtPanel.currentScale * 100);
         int scaleWidth = this.font.width(scaleText);
         graphics.drawString(this.font, scaleText, (this.width - scaleWidth) / 2, 34, COLOR_TEXT, true);
 
-        // render safari panel
-        renderPanel(graphics, safariPanel, mouseX, mouseY, true);
-
-        // render daycare panel
-        renderPanel(graphics, daycarePanel, mouseX, mouseY, false);
+        renderPanel(graphics, safariPanel, mouseX, mouseY, COLOR_OUTLINE);
+        renderPanel(graphics, daycarePanel, mouseX, mouseY, COLOR_OUTLINE_DAYCARE);
+        renderPanel(graphics, wtPanel, mouseX, mouseY, COLOR_OUTLINE_WT);
     }
 
-    private void renderPanel(GuiGraphics graphics, PanelState panel, int mouseX, int mouseY, boolean isSafari) {
+    private void renderPanel(GuiGraphics graphics, PanelState panel, int mouseX, int mouseY, int panelColor) {
         graphics.pose().pushPose();
         graphics.pose().translate(panel.panelX, panel.panelY, 0);
         graphics.pose().scale(panel.currentScale, panel.currentScale, 1.0f);
 
-        if (isSafari) {
+        if (panel == safariPanel) {
             renderSafariPreview(graphics, panel);
-        } else {
+        } else if (panel == daycarePanel) {
             renderDaycarePreview(graphics, panel);
+        } else if (panel == wtPanel) {
+            renderWtPreview(graphics, panel);
         }
 
         graphics.pose().popPose();
 
-        // outline
         int outlineColor;
         if (activePanel == panel && dragMode == DragMode.MOVE) {
             outlineColor = COLOR_OUTLINE_DRAG;
         } else if (activePanel == panel && dragMode == DragMode.RESIZE) {
             outlineColor = COLOR_CORNER_HOVER;
         } else {
-            outlineColor = isSafari ? COLOR_OUTLINE : COLOR_OUTLINE_DAYCARE;
+            outlineColor = panelColor;
         }
         drawOutline(graphics, panel.panelX, panel.panelY, panel.scaledWidth, panel.scaledHeight, outlineColor);
 
-        // label
         String label = panel.name;
         int labelWidth = this.font.width(label);
         int labelX = panel.panelX + (panel.scaledWidth - labelWidth) / 2;
         int labelY = panel.panelY - 10;
-        graphics.drawString(this.font, label, labelX, labelY,
-                isSafari ? COLOR_OUTLINE : COLOR_OUTLINE_DAYCARE, true);
+        graphics.drawString(this.font, label, labelX, labelY, panelColor, true);
 
-        // corner handles
         drawCornerHandles(graphics, panel, mouseX, mouseY);
     }
 
@@ -509,6 +522,69 @@ public class HudConfigScreen extends Screen {
         return y;
     }
 
+    private void renderWtPreview(GuiGraphics graphics, PanelState panel) {
+        boolean transparent = hudConfig.getHudStyle() == HudConfig.HudStyle.TRANSPARENT;
+
+        if (!transparent) {
+            graphics.fill(0, 0, panel.unscaledWidth, panel.unscaledHeight, COLOR_BG);
+        }
+
+        int y = PADDING;
+
+        String header = "SAA Wondertrade Helper";
+        int headerW = this.font.width(header);
+        graphics.drawString(this.font, header, (panel.unscaledWidth - headerW) / 2, y, COLOR_HEADER, true);
+        y += LINE_HEIGHT;
+
+        y += 2;
+        graphics.fill(PADDING, y, panel.unscaledWidth - PADDING, y + 1, 0xFF555555);
+        y += SECTION_SPACING;
+
+        if (wondertradeManager.hasTimer()) {
+            String timerText = wondertradeManager.isCooldownOver()
+                    ? "Cooldown Over!" : wondertradeManager.getRemainingFormatted();
+            int timerW = this.font.width(timerText);
+            graphics.drawString(this.font, timerText, (panel.unscaledWidth - timerW) / 2, y, 0xFF55FF55, true);
+            y += LINE_HEIGHT;
+
+            int barX = PADDING + 2;
+            int barWidth = panel.unscaledWidth - barX - PADDING;
+            float progress = wondertradeManager.getProgress();
+            graphics.fill(barX, y, barX + barWidth, y + 6, COLOR_TIMER_BAR_BG);
+            int filled = wondertradeManager.isCooldownOver() ? barWidth : (int) (barWidth * progress);
+            if (filled > 0) {
+                graphics.fill(barX, y, barX + filled, y + 6, 0xFF55FF55);
+            }
+        } else {
+            String timerText = "42:15";
+            int timerW = this.font.width(timerText);
+            graphics.drawString(this.font, timerText, (panel.unscaledWidth - timerW) / 2, y, 0xFF55FF55, true);
+            y += LINE_HEIGHT;
+
+            int barX = PADDING + 2;
+            int barWidth = panel.unscaledWidth - barX - PADDING;
+            graphics.fill(barX, y, barX + barWidth, y + 6, COLOR_TIMER_BAR_BG);
+            graphics.fill(barX, y, barX + (int) (barWidth * 0.3f), y + 6, 0xFF55FF55);
+        }
+    }
+
+    private int calculateWtWidth() {
+        int maxWidth = PANEL_MIN_WIDTH;
+        maxWidth = Math.max(maxWidth, this.font.width("SAA Wondertrade Helper") + PADDING * 2);
+        maxWidth = Math.max(maxWidth, this.font.width("Please use WT once to set menu.") + PADDING * 2);
+        return maxWidth + PADDING * 2;
+    }
+
+    private int calculateWtHeight() {
+        int height = PADDING;
+        height += LINE_HEIGHT; // header
+        height += 2 + SECTION_SPACING; // divider
+        height += LINE_HEIGHT; // timer text
+        height += 6; // bar
+        height += PADDING;
+        return height;
+    }
+
     private int calculateSafariWidth(boolean showTimer, boolean showHunts) {
         int maxWidth = PANEL_MIN_WIDTH;
 
@@ -637,6 +713,7 @@ public class HudConfigScreen extends Screen {
 
         CornerHit safariCorner = getCornerHit(safariPanel, mx, my);
         CornerHit daycareCorner = getCornerHit(daycarePanel, mx, my);
+        CornerHit wtCorner = getCornerHit(wtPanel, mx, my);
 
         if (safariCorner != null) {
             startResize(safariPanel, safariCorner);
@@ -646,6 +723,10 @@ public class HudConfigScreen extends Screen {
             startResize(daycarePanel, daycareCorner);
             return true;
         }
+        if (wtCorner != null) {
+            startResize(wtPanel, wtCorner);
+            return true;
+        }
 
         if (isInsidePanel(safariPanel, mx, my)) {
             startMove(safariPanel, mx, my);
@@ -653,6 +734,10 @@ public class HudConfigScreen extends Screen {
         }
         if (isInsidePanel(daycarePanel, mx, my)) {
             startMove(daycarePanel, mx, my);
+            return true;
+        }
+        if (isInsidePanel(wtPanel, mx, my)) {
+            startMove(wtPanel, mx, my);
             return true;
         }
 
@@ -752,6 +837,10 @@ public class HudConfigScreen extends Screen {
         hudConfig.setDaycareScale(daycarePanel.currentScale);
         hudConfig.setDaycarePositionFromAbsolute(daycarePanel.panelX, daycarePanel.panelY,
                 daycarePanel.scaledWidth, daycarePanel.scaledHeight, this.width, this.height);
+
+        hudConfig.setWtScale(wtPanel.currentScale);
+        hudConfig.setWtPositionFromAbsolute(wtPanel.panelX, wtPanel.panelY,
+                wtPanel.scaledWidth, wtPanel.scaledHeight, this.width, this.height);
 
         super.onClose();
     }

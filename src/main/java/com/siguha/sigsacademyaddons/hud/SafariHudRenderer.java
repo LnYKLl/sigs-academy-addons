@@ -13,8 +13,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import java.util.ArrayList;
 import java.util.List;
 
-// renders safari hud overlay with countdown timer and hunt tracker
-public class SafariHudRenderer {
+public class SafariHudRenderer implements HudPanel {
 
     private static final int PADDING = 4;
     private static final int LINE_HEIGHT = 11;
@@ -49,35 +48,119 @@ public class SafariHudRenderer {
         this.hudConfig = hudConfig;
     }
 
-    public void onHudRender(GuiGraphics graphics, DeltaTracker deltaTracker) {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.options.hideGui) {
-            return;
-        }
+    @Override
+    public String getPanelId() {
+        return "safari";
+    }
 
-        if (!hudConfig.isSafariMenuEnabled()) {
-            return;
-        }
-
+    private boolean[] computeVisibility() {
         boolean inSafariZone = safariManager.isInSafariZone();
         boolean showOutsideZone = hudConfig.isSafariTimerAlways();
-
         boolean hasActiveTimer = safariManager.isInSafari();
         boolean showTimer = hasActiveTimer && (showOutsideZone || inSafariZone);
         boolean showHunts = safariHuntManager.hasActiveHunts() && (showOutsideZone || inSafariZone);
+        return new boolean[]{showTimer, showHunts};
+    }
 
-        if (!showTimer && !showHunts) {
+    @Override
+    public boolean shouldRender() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || client.options.hideGui) {
+            return false;
+        }
+
+        if (!hudConfig.isSafariMenuEnabled()) {
+            return false;
+        }
+
+        boolean[] vis = computeVisibility();
+        return vis[0] || vis[1];
+    }
+
+    @Override
+    public boolean hasVisibleContent() {
+        return shouldRender();
+    }
+
+    @Override
+    public int getContentWidth(Font font) {
+        boolean[] vis = computeVisibility();
+        boolean showTimer = vis[0];
+        boolean compact = hudConfig.isCompact();
+
+        if (compact) {
+            return calculateCompactPanelWidth(font, showTimer);
+        } else {
+            return calculatePanelWidth(font, showTimer);
+        }
+    }
+
+    @Override
+    public int getContentHeight(Font font) {
+        boolean[] vis = computeVisibility();
+        boolean showTimer = vis[0];
+        boolean showHunts = vis[1];
+        boolean compact = hudConfig.isCompact();
+
+        int panelWidth = compact
+                ? calculateCompactPanelWidth(font, showTimer)
+                : calculatePanelWidth(font, showTimer);
+
+        if (compact) {
+            return calculateCompactPanelHeight(font, panelWidth, showTimer, showHunts);
+        } else {
+            return calculatePanelHeight(font, panelWidth, showTimer, showHunts);
+        }
+    }
+
+    @Override
+    public void renderContent(GuiGraphics graphics, Font font, int panelWidth) {
+        boolean[] vis = computeVisibility();
+        boolean showTimer = vis[0];
+        boolean showHunts = vis[1];
+        boolean compact = hudConfig.isCompact();
+
+        if (compact) {
+            renderCompact(graphics, font, panelWidth, showTimer, showHunts);
+        } else {
+            renderFull(graphics, font, panelWidth, showTimer, showHunts);
+        }
+    }
+
+    @Override
+    public void onHudRender(GuiGraphics graphics, DeltaTracker deltaTracker) {
+        if (!shouldRender()) {
             return;
         }
 
+        if (hudConfig.isInGroup("safari")) {
+            return;
+        }
+
+        Minecraft client = Minecraft.getInstance();
         Font font = client.font;
         int screenWidth = graphics.guiWidth();
         int screenHeight = graphics.guiHeight();
         float scale = hudConfig.getHudScale();
+
+        double guiScale = client.getWindow().getGuiScale();
+        float minScale = (float) (6.0 / (8.0 * guiScale));
+        float maxScale = (float) (32.0 / (8.0 * guiScale));
+        scale = Math.max(minScale, Math.min(maxScale, scale));
+
         boolean transparent = hudConfig.getHudStyle() == HudConfig.HudStyle.TRANSPARENT;
 
-        int panelWidth = calculatePanelWidth(font, showTimer);
-        int panelHeight = calculatePanelHeight(font, panelWidth, showTimer, showHunts);
+        boolean[] vis = computeVisibility();
+        boolean showTimer = vis[0];
+        boolean showHunts = vis[1];
+        boolean compact = hudConfig.isCompact();
+
+        int panelWidth = compact
+                ? calculateCompactPanelWidth(font, showTimer)
+                : calculatePanelWidth(font, showTimer);
+        int panelHeight = compact
+                ? calculateCompactPanelHeight(font, panelWidth, showTimer, showHunts)
+                : calculatePanelHeight(font, panelWidth, showTimer, showHunts);
 
         int scaledWidth = Math.round(panelWidth * scale);
         int scaledHeight = Math.round(panelHeight * scale);
@@ -93,6 +176,118 @@ public class SafariHudRenderer {
             graphics.fill(0, 0, panelWidth, panelHeight, COLOR_BG);
         }
 
+        renderContent(graphics, font, panelWidth);
+
+        graphics.pose().popPose();
+    }
+
+    private void renderCompact(GuiGraphics graphics, Font font, int panelWidth,
+                                boolean showTimer, boolean showHunts) {
+        int currentY = PADDING;
+
+        if (showTimer) {
+            currentY = renderCompactTimerLine(graphics, font, currentY, panelWidth);
+        }
+
+        if (showHunts) {
+            renderCompactHuntSection(graphics, font, currentY, panelWidth);
+        } else if (showTimer) {
+            graphics.drawString(font, "No hunts loaded", PADDING, currentY, COLOR_TEXT_SECONDARY, true);
+        }
+    }
+
+    private int renderCompactTimerLine(GuiGraphics graphics, Font font, int startY, int panelWidth) {
+        int y = startY;
+        String prefix = safariManager.isInSafariZone() ? "Safari: " : "Safari (away): ";
+        graphics.drawString(font, prefix, PADDING, y, COLOR_HEADER, true);
+        int textX = PADDING + font.width(prefix);
+
+        String timerText = safariManager.getRemainingTimeFormatted();
+        float progress = safariManager.getTimerProgress();
+        int timerColor = getTimerColor(progress);
+        graphics.drawString(font, timerText, textX, y, timerColor, true);
+        y += LINE_HEIGHT;
+        return y;
+    }
+
+    private void renderCompactHuntSection(GuiGraphics graphics, Font font, int startY, int panelWidth) {
+        int y = startY;
+        List<SafariHuntData> hunts = safariHuntManager.getActiveHunts();
+
+        for (int i = 0; i < hunts.size(); i++) {
+            SafariHuntData hunt = hunts.get(i);
+
+            int nameColor;
+            if (hunt.isComplete()) {
+                nameColor = COLOR_PROGRESS_COMPLETE;
+            } else if (hunt.getCategory() != SafariHuntData.HuntCategory.UNKNOWN) {
+                nameColor = HuntEntityTracker.getSlotColor(i) | 0xFF000000;
+            } else {
+                nameColor = COLOR_TEXT_PRIMARY;
+            }
+
+            int px = PADDING;
+
+            graphics.drawString(font, hunt.getDisplayName(), px, y, nameColor, true);
+            px += font.width(hunt.getDisplayName()) + 4;
+
+            String countText = "[" + hunt.getCaught() + "/" + hunt.getTotal() + "]";
+            int countColor = hunt.isComplete() ? COLOR_PROGRESS_COMPLETE : COLOR_TEXT_SECONDARY;
+            graphics.drawString(font, countText, px, y, countColor, true);
+            px += font.width(countText);
+
+            String resetText = hunt.getResetCountdownFormatted();
+            if (!resetText.isEmpty()) {
+                String timerSuffix = " - " + resetText;
+                int resetColor = hunt.isResetExpired() ? COLOR_TIMER_DANGER : COLOR_RESET_TIMER;
+                graphics.drawString(font, timerSuffix, px, y, resetColor, true);
+            }
+
+            y += LINE_HEIGHT;
+        }
+    }
+
+    private int calculateCompactPanelWidth(Font font, boolean showTimer) {
+        int maxWidth = PANEL_MIN_WIDTH;
+
+        if (showTimer) {
+            String prefix = safariManager.isInSafariZone() ? "Safari: " : "Safari (away): ";
+            maxWidth = Math.max(maxWidth,
+                    font.width(prefix) + font.width(safariManager.getRemainingTimeFormatted()) + PADDING * 2);
+        }
+
+        for (int i = 0; i < safariHuntManager.getActiveHunts().size(); i++) {
+            SafariHuntData hunt = safariHuntManager.getActiveHunts().get(i);
+            int lineWidth = font.width(hunt.getDisplayName()) + 4
+                    + font.width("[" + hunt.getCaught() + "/" + hunt.getTotal() + "]");
+            String resetText = hunt.getResetCountdownFormatted();
+            if (!resetText.isEmpty()) {
+                lineWidth += font.width(" - " + resetText);
+            }
+            maxWidth = Math.max(maxWidth, lineWidth + PADDING * 2);
+        }
+
+        if (!safariHuntManager.hasActiveHunts() && showTimer) {
+            maxWidth = Math.max(maxWidth, font.width("No hunts loaded") + PADDING * 2);
+        }
+
+        return maxWidth + PADDING * 2;
+    }
+
+    private int calculateCompactPanelHeight(Font font, int panelWidth, boolean showTimer, boolean showHunts) {
+        int height = PADDING;
+        if (showTimer) height += LINE_HEIGHT;
+        if (showHunts) {
+            height += safariHuntManager.getActiveHunts().size() * LINE_HEIGHT;
+        } else if (showTimer) {
+            height += LINE_HEIGHT;
+        }
+        height += PADDING;
+        return height;
+    }
+
+    private void renderFull(GuiGraphics graphics, Font font, int panelWidth,
+                             boolean showTimer, boolean showHunts) {
         int currentY = PADDING;
 
         if (showTimer) {
@@ -113,14 +308,12 @@ public class SafariHudRenderer {
             renderNoQuestsMessage(graphics, font, currentY, panelWidth);
 
         }
-
-        graphics.pose().popPose();
     }
 
     private int renderTimerSection(GuiGraphics graphics, Font font, int startY, int panelWidth) {
         int y = startY;
         String header = "SAA Safari Helper";
-        
+
         if (!safariManager.isInSafariZone()) {
             header = "SAA Safari Helper (away)";
         }
@@ -223,7 +416,6 @@ public class SafariHudRenderer {
             graphics.drawString(font, totalStr, px, y, numberColor, true);
             px += font.width(totalStr);
 
-            // mini progress bar
             int barX = px + 6;
             int barWidth = panelWidth - barX - PADDING;
             if (barWidth > 10) {
@@ -279,7 +471,7 @@ public class SafariHudRenderer {
         if (showHunts) {
             height += LINE_HEIGHT + 2;
             height += safariHuntManager.getActiveHunts().size() * (LINE_HEIGHT * 2);
-            
+
         } else if (showTimer) {
             int maxTextWidth = panelWidth - PADDING * 2;
             int lineCount = wrapText(font, NO_QUESTS_MESSAGE, maxTextWidth).size();

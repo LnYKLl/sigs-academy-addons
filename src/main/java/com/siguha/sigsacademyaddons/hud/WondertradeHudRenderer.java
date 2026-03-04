@@ -7,7 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 
-public class WondertradeHudRenderer {
+public class WondertradeHudRenderer implements HudPanel {
 
     private static final int PADDING = 4;
     private static final int LINE_HEIGHT = 11;
@@ -29,19 +29,61 @@ public class WondertradeHudRenderer {
         this.hudConfig = hudConfig;
     }
 
-    public void onHudRender(GuiGraphics graphics, DeltaTracker deltaTracker) {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null || client.options.hideGui) return;
-        if (!hudConfig.isWtMenuEnabled()) return;
+    @Override
+    public String getPanelId() {
+        return "wondertrade";
+    }
 
+    @Override
+    public boolean shouldRender() {
+        Minecraft client = Minecraft.getInstance();
+        return hudConfig.isWtMenuEnabled() && client.player != null && !client.options.hideGui;
+    }
+
+    @Override
+    public boolean hasVisibleContent() {
+        return wondertradeManager.hasTimer();
+    }
+
+    @Override
+    public int getContentWidth(Font font) {
+        return hudConfig.isCompact() ? calculateCompactPanelWidth(font) : calculatePanelWidth(font);
+    }
+
+    @Override
+    public int getContentHeight(Font font) {
+        return hudConfig.isCompact() ? calculateCompactPanelHeight() : calculatePanelHeight(font);
+    }
+
+    @Override
+    public void renderContent(GuiGraphics graphics, Font font, int panelWidth) {
+        if (hudConfig.isCompact()) {
+            renderCompact(graphics, font, panelWidth);
+        } else {
+            renderFull(graphics, font, panelWidth);
+        }
+    }
+
+    @Override
+    public void onHudRender(GuiGraphics graphics, DeltaTracker deltaTracker) {
+        if (!shouldRender()) return;
+        if (hudConfig.isInGroup("wondertrade")) return;
+
+        Minecraft client = Minecraft.getInstance();
         Font font = client.font;
         int screenWidth = graphics.guiWidth();
         int screenHeight = graphics.guiHeight();
         float scale = hudConfig.getWtScale();
+
+        double guiScale = client.getWindow().getGuiScale();
+        float minScale = (float) (6.0 / (8.0 * guiScale));
+        float maxScale = (float) (32.0 / (8.0 * guiScale));
+        scale = Math.max(minScale, Math.min(maxScale, scale));
+
         boolean transparent = hudConfig.getHudStyle() == HudConfig.HudStyle.TRANSPARENT;
 
-        int panelWidth = calculatePanelWidth(font);
-        int panelHeight = calculatePanelHeight(font);
+        int panelWidth = getContentWidth(font);
+        int panelHeight = getContentHeight(font);
 
         int scaledWidth = Math.round(panelWidth * scale);
         int scaledHeight = Math.round(panelHeight * scale);
@@ -57,6 +99,33 @@ public class WondertradeHudRenderer {
             graphics.fill(0, 0, panelWidth, panelHeight, COLOR_BG);
         }
 
+        renderContent(graphics, font, panelWidth);
+
+        graphics.pose().popPose();
+    }
+
+    private void renderCompact(GuiGraphics graphics, Font font, int panelWidth) {
+        int y = PADDING;
+        String prefix = "WT Time: ";
+        graphics.drawString(font, prefix, PADDING, y, COLOR_HEADER, true);
+        int textX = PADDING + font.width(prefix);
+
+        String timerText;
+        int timerColor;
+        if (!wondertradeManager.hasTimer()) {
+            timerText = "Not Set";
+            timerColor = COLOR_TEXT_UNSET;
+        } else if (wondertradeManager.isCooldownOver()) {
+            timerText = "Ready!";
+            timerColor = COLOR_TIMER;
+        } else {
+            timerText = wondertradeManager.getRemainingFormatted();
+            timerColor = COLOR_TIMER;
+        }
+        graphics.drawString(font, timerText, textX, y, timerColor, true);
+    }
+
+    private void renderFull(GuiGraphics graphics, Font font, int panelWidth) {
         int currentY = PADDING;
 
         String header = "SAA Wondertrade Helper";
@@ -100,11 +169,26 @@ public class WondertradeHudRenderer {
                 graphics.fill(barX, currentY, barX + filled, currentY + TIMER_BAR_HEIGHT, COLOR_TIMER);
             }
         }
-
-        graphics.pose().popPose();
     }
 
-    public int calculatePanelWidth(Font font) {
+    private int calculateCompactPanelWidth(Font font) {
+        String prefix = "WT Time: ";
+        String timerText;
+        if (!wondertradeManager.hasTimer()) {
+            timerText = "Not Set";
+        } else if (wondertradeManager.isCooldownOver()) {
+            timerText = "Ready!";
+        } else {
+            timerText = wondertradeManager.getRemainingFormatted();
+        }
+        return font.width(prefix) + font.width(timerText) + PADDING * 2;
+    }
+
+    private int calculateCompactPanelHeight() {
+        return PADDING + LINE_HEIGHT + PADDING;
+    }
+
+    private int calculatePanelWidth(Font font) {
         int maxWidth = PANEL_MIN_WIDTH;
         maxWidth = Math.max(maxWidth, font.width("SAA Wondertrade Helper") + PADDING * 2);
         maxWidth = Math.max(maxWidth, font.width("Please use WT once to set menu.") + PADDING * 2);
@@ -112,7 +196,7 @@ public class WondertradeHudRenderer {
         return maxWidth + PADDING * 2;
     }
 
-    public int calculatePanelHeight(Font font) {
+    private int calculatePanelHeight(Font font) {
         int height = PADDING;
         height += LINE_HEIGHT;
         height += 2 + SECTION_SPACING;

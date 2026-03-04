@@ -19,6 +19,7 @@ import com.siguha.sigsacademyaddons.handler.CatchDetector;
 import com.siguha.sigsacademyaddons.handler.ChatMessageHandler;
 import com.siguha.sigsacademyaddons.handler.ScreenInterceptor;
 import com.siguha.sigsacademyaddons.hud.DaycareHudRenderer;
+import com.siguha.sigsacademyaddons.hud.HudGroupRenderer;
 import com.siguha.sigsacademyaddons.hud.SafariHudRenderer;
 import com.siguha.sigsacademyaddons.hud.WondertradeHudRenderer;
 import net.fabricmc.api.ClientModInitializer;
@@ -33,6 +34,7 @@ import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
+import java.util.Collections;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.system.MemoryUtil;
 
@@ -105,9 +107,11 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
             }
         });
 
-        HudRenderCallback.EVENT.register(hudRenderer::onHudRender);
-        HudRenderCallback.EVENT.register(daycareHudRenderer::onHudRender);
-        HudRenderCallback.EVENT.register(wtHudRenderer::onHudRender);
+        HudGroupRenderer groupRenderer = new HudGroupRenderer(hudConfig);
+        groupRenderer.registerPanel(hudRenderer);
+        groupRenderer.registerPanel(daycareHudRenderer);
+        groupRenderer.registerPanel(wtHudRenderer);
+        HudRenderCallback.EVENT.register(groupRenderer::onHudRender);
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             daycareManager.onServerJoined();
@@ -162,6 +166,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             hudConfig.setWtScale(1.0f);
                                             hudConfig.setWtPositionFromAbsolute(
                                                     sw - 145, sh - 80, 140, 70, sw, sh);
+                                            hudConfig.setJoinedGroup(Collections.emptyList());
                                             context.getSource().sendFeedback(
                                                     Component.literal("\u00A7aAll HUD positions and scales reset to default."));
                                             return 1;
@@ -491,6 +496,31 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             return 1;
                                         })
                                 )
+                                .then(ClientCommandManager.literal("hudLayout")
+                                        .then(ClientCommandManager.literal("full")
+                                                .executes(context -> {
+                                                    hudConfig.setHudLayout(HudConfig.HudLayout.FULL);
+                                                    context.getSource().sendFeedback(
+                                                            Component.literal("\u00A7aHUD layout set to full."));
+                                                    return 1;
+                                                })
+                                        )
+                                        .then(ClientCommandManager.literal("compact")
+                                                .executes(context -> {
+                                                    hudConfig.setHudLayout(HudConfig.HudLayout.COMPACT);
+                                                    context.getSource().sendFeedback(
+                                                            Component.literal("\u00A7aHUD layout set to compact."));
+                                                    return 1;
+                                                })
+                                        )
+                                        .executes(context -> {
+                                            String layout = hudConfig.getHudLayout().name().toLowerCase();
+                                            context.getSource().sendFeedback(Component.literal(
+                                                    "\u00A77hudLayout = \u00A7f" + layout +
+                                                    "\n\u00A77Usage: \u00A7e/saa config hudLayout <full|compact>"));
+                                            return 1;
+                                        })
+                                )
                                 .executes(context -> {
                                     context.getSource().sendFeedback(Component.literal(
                                             "\u00A76Configuration:\n" +
@@ -504,6 +534,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             "\n\u00A77wtShowChatReminders = \u00A7f" + hudConfig.isWtShowChatReminders() +
                                             "\n\u00A77wtSoundsEnabled = \u00A7f" + hudConfig.isWtSoundsEnabled() +
                                             "\n\u00A77hudStyle = \u00A7f" + hudConfig.getHudStyle().name().toLowerCase() +
+                                            "\n\u00A77hudLayout = \u00A7f" + hudConfig.getHudLayout().name().toLowerCase() +
                                             "\n\u00A77safariScale = \u00A7f" + String.format("%.0f%%", hudConfig.getHudScale() * 100) +
                                             "\n\u00A77daycareScale = \u00A7f" + String.format("%.0f%%", hudConfig.getDaycareScale() * 100) +
                                             "\n\u00A77wtScale = \u00A7f" + String.format("%.0f%%", hudConfig.getWtScale() * 100)
@@ -532,7 +563,8 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                     "\u00A7e/saa config wtMenuEnabled <bool>\u00A77 — Wondertrade HUD toggle\n" +
                                     "\u00A7e/saa config wtShowChatReminders <bool>\u00A77 — WT chat reminder toggle\n" +
                                     "\u00A7e/saa config wtSoundsEnabled <bool>\u00A77 — WT sound alerts toggle\n" +
-                                    "\u00A7e/saa config hudStyle <solid|transparent>\u00A77 — HUD background style"
+                                    "\u00A7e/saa config hudStyle <solid|transparent>\u00A77 — HUD background style\n" +
+                                    "\u00A7e/saa config hudLayout <full|compact>\u00A77 — HUD layout mode"
                             ));
                             return 1;
                         })

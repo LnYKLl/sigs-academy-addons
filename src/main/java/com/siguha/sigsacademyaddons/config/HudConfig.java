@@ -9,8 +9,10 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
-// persists hud position, scale, and feature toggles to hud-config.json
 public class HudConfig {
 
     private static final String CONFIG_FILE = "hud-config.json";
@@ -28,32 +30,46 @@ public class HudConfig {
         TRANSPARENT
     }
 
+    public enum HudLayout {
+        FULL,
+        COMPACT
+    }
+
     private Anchor anchor = Anchor.TOP_RIGHT;
     private int offsetX = 5;
     private int offsetY = 5;
+    private int refScreenWidth = 0;
     private boolean safariTimerAlways = true;
     private float hudScale = 1.0f;
     private boolean safariQuestMonGlow = true;
     private HudStyle hudStyle = HudStyle.SOLID;
+    private HudLayout hudLayout = HudLayout.FULL;
     private boolean safariMenuEnabled = true;
 
-    // daycare settings
     private boolean daycareMenuEnabled = true;
     private boolean daycareSoundsEnabled = true;
     private Anchor daycareAnchor = Anchor.TOP_LEFT;
     private int daycareOffsetX = 5;
     private int daycareOffsetY = 5;
+    private int daycareRefScreenWidth = 0;
     private float daycareScale = 1.0f;
     private int daycareEggsHatchingSlots = 5;
 
-    // wondertrade settings
     private boolean wtMenuEnabled = true;
     private boolean wtShowChatReminders = true;
     private boolean wtSoundsEnabled = true;
     private Anchor wtAnchor = Anchor.BOTTOM_RIGHT;
     private int wtOffsetX = 5;
     private int wtOffsetY = 5;
+    private int wtRefScreenWidth = 0;
     private float wtScale = 1.0f;
+
+    private List<String> joinedGroup = new ArrayList<>();
+    private float groupScale = 1.0f;
+    private Anchor groupAnchor = Anchor.TOP_LEFT;
+    private int groupOffsetX = 5;
+    private int groupOffsetY = 5;
+    private int groupRefScreenWidth = 0;
 
     public HudConfig() {
         load();
@@ -95,6 +111,19 @@ public class HudConfig {
         save();
     }
 
+    public HudLayout getHudLayout() {
+        return hudLayout;
+    }
+
+    public void setHudLayout(HudLayout hudLayout) {
+        this.hudLayout = hudLayout;
+        save();
+    }
+
+    public boolean isCompact() {
+        return hudLayout == HudLayout.COMPACT;
+    }
+
     public boolean isSafariMenuEnabled() {
         return safariMenuEnabled;
     }
@@ -119,50 +148,6 @@ public class HudConfig {
 
     public void setDaycareSoundsEnabled(boolean daycareSoundsEnabled) {
         this.daycareSoundsEnabled = daycareSoundsEnabled;
-        save();
-    }
-
-    public Anchor getDaycareAnchor() {
-        return daycareAnchor;
-    }
-
-    public int getDaycareOffsetX() {
-        return daycareOffsetX;
-    }
-
-    public int getDaycareOffsetY() {
-        return daycareOffsetY;
-    }
-
-    public int getDaycarePanelX(int screenWidth, int panelWidth) {
-        return switch (daycareAnchor) {
-            case TOP_LEFT, BOTTOM_LEFT -> daycareOffsetX;
-            case TOP_RIGHT, BOTTOM_RIGHT -> screenWidth - panelWidth - daycareOffsetX;
-        };
-    }
-
-    public int getDaycarePanelY(int screenHeight, int panelHeight) {
-        return switch (daycareAnchor) {
-            case TOP_LEFT, TOP_RIGHT -> daycareOffsetY;
-            case BOTTOM_LEFT, BOTTOM_RIGHT -> screenHeight - panelHeight - daycareOffsetY;
-        };
-    }
-
-    public float getDaycareScale() {
-        return daycareScale;
-    }
-
-    public void setDaycareScale(float daycareScale) {
-        this.daycareScale = Math.max(0.5f, Math.min(2.0f, daycareScale));
-        save();
-    }
-
-    public int getDaycareEggsHatchingSlots() {
-        return daycareEggsHatchingSlots;
-    }
-
-    public void setDaycareEggsHatchingSlots(int daycareEggsHatchingSlots) {
-        this.daycareEggsHatchingSlots = Math.max(0, Math.min(5, daycareEggsHatchingSlots));
         save();
     }
 
@@ -193,19 +178,152 @@ public class HudConfig {
         save();
     }
 
+    public Anchor getAnchor() {
+        return anchor;
+    }
+
+    public int getPanelX(int screenWidth, int panelWidth) {
+        if (refScreenWidth > 0) {
+            int refPanelX = switch (anchor) {
+                case TOP_LEFT, BOTTOM_LEFT -> offsetX;
+                case TOP_RIGHT, BOTTOM_RIGHT -> refScreenWidth - panelWidth - offsetX;
+            };
+            return (screenWidth - refScreenWidth) / 2 + refPanelX;
+        }
+        return switch (anchor) {
+            case TOP_LEFT, BOTTOM_LEFT -> offsetX;
+            case TOP_RIGHT, BOTTOM_RIGHT -> screenWidth - panelWidth - offsetX;
+        };
+    }
+
+    public int getPanelY(int screenHeight, int panelHeight) {
+        return switch (anchor) {
+            case TOP_LEFT, TOP_RIGHT -> offsetY;
+            case BOTTOM_LEFT, BOTTOM_RIGHT -> screenHeight - offsetY;
+        };
+    }
+
+    public void setPositionFromAbsolute(int panelX, int panelY, int panelWidth, int panelHeight,
+                                         int screenWidth, int screenHeight) {
+        int centerX = panelX + panelWidth / 2;
+        int centerY = panelY + panelHeight / 2;
+
+        boolean leftHalf = centerX < screenWidth / 2;
+        boolean topHalf = centerY < screenHeight / 2;
+
+        if (topHalf && leftHalf) {
+            anchor = Anchor.TOP_LEFT;
+            offsetX = panelX;
+            offsetY = panelY;
+        } else if (topHalf) {
+            anchor = Anchor.TOP_RIGHT;
+            offsetX = screenWidth - panelX - panelWidth;
+            offsetY = panelY;
+        } else if (leftHalf) {
+            anchor = Anchor.BOTTOM_LEFT;
+            offsetX = panelX;
+            offsetY = screenHeight - panelY;
+        } else {
+            anchor = Anchor.BOTTOM_RIGHT;
+            offsetX = screenWidth - panelX - panelWidth;
+            offsetY = screenHeight - panelY;
+        }
+
+        offsetX = Math.max(0, offsetX);
+        offsetY = Math.max(0, offsetY);
+        this.refScreenWidth = screenWidth;
+
+        save();
+    }
+
+    public Anchor getDaycareAnchor() {
+        return daycareAnchor;
+    }
+
+    public int getDaycarePanelX(int screenWidth, int panelWidth) {
+        if (daycareRefScreenWidth > 0) {
+            int refPanelX = switch (daycareAnchor) {
+                case TOP_LEFT, BOTTOM_LEFT -> daycareOffsetX;
+                case TOP_RIGHT, BOTTOM_RIGHT -> daycareRefScreenWidth - panelWidth - daycareOffsetX;
+            };
+            return (screenWidth - daycareRefScreenWidth) / 2 + refPanelX;
+        }
+        return switch (daycareAnchor) {
+            case TOP_LEFT, BOTTOM_LEFT -> daycareOffsetX;
+            case TOP_RIGHT, BOTTOM_RIGHT -> screenWidth - panelWidth - daycareOffsetX;
+        };
+    }
+
+    public int getDaycarePanelY(int screenHeight, int panelHeight) {
+        return switch (daycareAnchor) {
+            case TOP_LEFT, TOP_RIGHT -> daycareOffsetY;
+            case BOTTOM_LEFT, BOTTOM_RIGHT -> screenHeight - daycareOffsetY;
+        };
+    }
+
+    public float getDaycareScale() {
+        return daycareScale;
+    }
+
+    public void setDaycareScale(float daycareScale) {
+        this.daycareScale = Math.max(0.5f, Math.min(2.0f, daycareScale));
+        save();
+    }
+
+    public int getDaycareEggsHatchingSlots() {
+        return daycareEggsHatchingSlots;
+    }
+
+    public void setDaycareEggsHatchingSlots(int daycareEggsHatchingSlots) {
+        this.daycareEggsHatchingSlots = Math.max(0, Math.min(5, daycareEggsHatchingSlots));
+        save();
+    }
+
+    public void setDaycarePositionFromAbsolute(int panelX, int panelY, int panelWidth, int panelHeight,
+                                                int screenWidth, int screenHeight) {
+        int centerX = panelX + panelWidth / 2;
+        int centerY = panelY + panelHeight / 2;
+
+        boolean leftHalf = centerX < screenWidth / 2;
+        boolean topHalf = centerY < screenHeight / 2;
+
+        if (topHalf && leftHalf) {
+            daycareAnchor = Anchor.TOP_LEFT;
+            daycareOffsetX = panelX;
+            daycareOffsetY = panelY;
+        } else if (topHalf) {
+            daycareAnchor = Anchor.TOP_RIGHT;
+            daycareOffsetX = screenWidth - panelX - panelWidth;
+            daycareOffsetY = panelY;
+        } else if (leftHalf) {
+            daycareAnchor = Anchor.BOTTOM_LEFT;
+            daycareOffsetX = panelX;
+            daycareOffsetY = screenHeight - panelY;
+        } else {
+            daycareAnchor = Anchor.BOTTOM_RIGHT;
+            daycareOffsetX = screenWidth - panelX - panelWidth;
+            daycareOffsetY = screenHeight - panelY;
+        }
+
+        daycareOffsetX = Math.max(0, daycareOffsetX);
+        daycareOffsetY = Math.max(0, daycareOffsetY);
+        this.daycareRefScreenWidth = screenWidth;
+
+        save();
+    }
+
     public Anchor getWtAnchor() {
         return wtAnchor;
     }
 
-    public int getWtOffsetX() {
-        return wtOffsetX;
-    }
-
-    public int getWtOffsetY() {
-        return wtOffsetY;
-    }
-
     public int getWtPanelX(int screenWidth, int panelWidth) {
+        if (wtRefScreenWidth > 0) {
+            int refPanelX = switch (wtAnchor) {
+                case TOP_LEFT, BOTTOM_LEFT -> wtOffsetX;
+                case TOP_RIGHT, BOTTOM_RIGHT -> wtRefScreenWidth - panelWidth - wtOffsetX;
+            };
+            return (screenWidth - wtRefScreenWidth) / 2 + refPanelX;
+        }
         return switch (wtAnchor) {
             case TOP_LEFT, BOTTOM_LEFT -> wtOffsetX;
             case TOP_RIGHT, BOTTOM_RIGHT -> screenWidth - panelWidth - wtOffsetX;
@@ -215,7 +333,7 @@ public class HudConfig {
     public int getWtPanelY(int screenHeight, int panelHeight) {
         return switch (wtAnchor) {
             case TOP_LEFT, TOP_RIGHT -> wtOffsetY;
-            case BOTTOM_LEFT, BOTTOM_RIGHT -> screenHeight - panelHeight - wtOffsetY;
+            case BOTTOM_LEFT, BOTTOM_RIGHT -> screenHeight - wtOffsetY;
         };
     }
 
@@ -247,106 +365,74 @@ public class HudConfig {
         } else if (leftHalf) {
             wtAnchor = Anchor.BOTTOM_LEFT;
             wtOffsetX = panelX;
-            wtOffsetY = screenHeight - panelY - panelHeight;
+            wtOffsetY = screenHeight - panelY;
         } else {
             wtAnchor = Anchor.BOTTOM_RIGHT;
             wtOffsetX = screenWidth - panelX - panelWidth;
-            wtOffsetY = screenHeight - panelY - panelHeight;
+            wtOffsetY = screenHeight - panelY;
         }
 
         wtOffsetX = Math.max(0, wtOffsetX);
         wtOffsetY = Math.max(0, wtOffsetY);
+        this.wtRefScreenWidth = screenWidth;
 
         save();
     }
 
-    public void setDaycarePositionFromAbsolute(int panelX, int panelY, int panelWidth, int panelHeight,
-                                                int screenWidth, int screenHeight) {
-        int centerX = panelX + panelWidth / 2;
-        int centerY = panelY + panelHeight / 2;
+    public List<String> getJoinedGroup() {
+        return Collections.unmodifiableList(joinedGroup);
+    }
 
-        boolean leftHalf = centerX < screenWidth / 2;
-        boolean topHalf = centerY < screenHeight / 2;
-
-        if (topHalf && leftHalf) {
-            daycareAnchor = Anchor.TOP_LEFT;
-            daycareOffsetX = panelX;
-            daycareOffsetY = panelY;
-        } else if (topHalf) {
-            daycareAnchor = Anchor.TOP_RIGHT;
-            daycareOffsetX = screenWidth - panelX - panelWidth;
-            daycareOffsetY = panelY;
-        } else if (leftHalf) {
-            daycareAnchor = Anchor.BOTTOM_LEFT;
-            daycareOffsetX = panelX;
-            daycareOffsetY = screenHeight - panelY - panelHeight;
-        } else {
-            daycareAnchor = Anchor.BOTTOM_RIGHT;
-            daycareOffsetX = screenWidth - panelX - panelWidth;
-            daycareOffsetY = screenHeight - panelY - panelHeight;
-        }
-
-        daycareOffsetX = Math.max(0, daycareOffsetX);
-        daycareOffsetY = Math.max(0, daycareOffsetY);
-
+    public void setJoinedGroup(List<String> group) {
+        this.joinedGroup = group != null ? new ArrayList<>(group) : new ArrayList<>();
         save();
     }
 
-    public Anchor getAnchor() {
-        return anchor;
+    public boolean isInGroup(String panelId) {
+        return joinedGroup.contains(panelId);
     }
 
-    public int getOffsetX() {
-        return offsetX;
+    public float getGroupScale() {
+        return groupScale;
     }
 
-    public int getOffsetY() {
-        return offsetY;
+    public void setGroupScale(float groupScale) {
+        this.groupScale = Math.max(0.5f, Math.min(2.0f, groupScale));
+        save();
     }
 
-    public int getPanelX(int screenWidth, int panelWidth) {
-        return switch (anchor) {
-            case TOP_LEFT, BOTTOM_LEFT -> offsetX;
-            case TOP_RIGHT, BOTTOM_RIGHT -> screenWidth - panelWidth - offsetX;
+    public int getGroupPanelX(int screenWidth, int scaledWidth) {
+        if (groupRefScreenWidth > 0) {
+            return (screenWidth - groupRefScreenWidth) / 2 + groupOffsetX;
+        }
+        return groupOffsetX;
+    }
+
+    public int getGroupPanelY(int screenHeight, int scaledHeight) {
+        return switch (groupAnchor) {
+            case TOP_LEFT, TOP_RIGHT -> groupOffsetY;
+            case BOTTOM_LEFT, BOTTOM_RIGHT -> screenHeight - groupOffsetY;
         };
     }
 
-    public int getPanelY(int screenHeight, int panelHeight) {
-        return switch (anchor) {
-            case TOP_LEFT, TOP_RIGHT -> offsetY;
-            case BOTTOM_LEFT, BOTTOM_RIGHT -> screenHeight - panelHeight - offsetY;
-        };
-    }
-
-    public void setPositionFromAbsolute(int panelX, int panelY, int panelWidth, int panelHeight,
-                                         int screenWidth, int screenHeight) {
-        int centerX = panelX + panelWidth / 2;
+    public void setGroupPositionFromAbsolute(int panelX, int panelY, int panelWidth, int panelHeight,
+                                              int screenWidth, int screenHeight) {
         int centerY = panelY + panelHeight / 2;
-
-        boolean leftHalf = centerX < screenWidth / 2;
         boolean topHalf = centerY < screenHeight / 2;
 
-        if (topHalf && leftHalf) {
-            anchor = Anchor.TOP_LEFT;
-            offsetX = panelX;
-            offsetY = panelY;
-        } else if (topHalf) {
-            anchor = Anchor.TOP_RIGHT;
-            offsetX = screenWidth - panelX - panelWidth;
-            offsetY = panelY;
-        } else if (leftHalf) {
-            anchor = Anchor.BOTTOM_LEFT;
-            offsetX = panelX;
-            offsetY = screenHeight - panelY - panelHeight;
+        groupOffsetX = panelX;
+        this.groupRefScreenWidth = screenWidth;
+
+        if (topHalf) {
+            groupAnchor = Anchor.TOP_LEFT;
+            groupOffsetY = panelY;
         } else {
-            anchor = Anchor.BOTTOM_RIGHT;
-            offsetX = screenWidth - panelX - panelWidth;
-            offsetY = screenHeight - panelY - panelHeight;
+            groupAnchor = Anchor.BOTTOM_LEFT;
+            groupOffsetY = screenHeight - panelY;
         }
 
-        // clamp to non-negative
-        offsetX = Math.max(0, offsetX);
-        offsetY = Math.max(0, offsetY);
+        groupOffsetX = Math.max(0, groupOffsetX);
+        groupOffsetY = Math.max(0, groupOffsetY);
 
         save();
     }
@@ -356,18 +442,22 @@ public class HudConfig {
             Path filePath = getConfigPath();
             Files.createDirectories(filePath.getParent());
 
-            ConfigData data = new ConfigData(anchor.name(), offsetX, offsetY, safariTimerAlways, hudScale,
+            ConfigData data = new ConfigData(
+                    anchor.name(), offsetX, offsetY, safariTimerAlways, hudScale,
                     safariQuestMonGlow, hudStyle.name(), safariMenuEnabled,
                     daycareMenuEnabled, daycareSoundsEnabled,
                     daycareAnchor.name(), daycareOffsetX, daycareOffsetY,
                     daycareScale, daycareEggsHatchingSlots,
                     wtMenuEnabled, wtShowChatReminders, wtSoundsEnabled,
-                    wtAnchor.name(), wtOffsetX, wtOffsetY, wtScale);
+                    wtAnchor.name(), wtOffsetX, wtOffsetY, wtScale,
+                    hudLayout.name(),
+                    refScreenWidth, daycareRefScreenWidth, wtRefScreenWidth,
+                    joinedGroup.isEmpty() ? null : new ArrayList<>(joinedGroup),
+                    groupScale, groupAnchor.name(), groupOffsetX, groupOffsetY,
+                    groupRefScreenWidth);
             try (Writer writer = Files.newBufferedWriter(filePath)) {
                 GSON.toJson(data, writer);
             }
-            SigsAcademyAddons.LOGGER.debug("[HudConfig] Saved HUD position: anchor={}, offsetX={}, offsetY={}",
-                    anchor, offsetX, offsetY);
         } catch (Exception e) {
             SigsAcademyAddons.LOGGER.warn("[HudConfig] Failed to save config", e);
         }
@@ -384,29 +474,41 @@ public class HudConfig {
                 ConfigData data = GSON.fromJson(reader, ConfigData.class);
                 if (data != null) {
                     this.anchor = Anchor.valueOf(data.anchor);
-                    this.offsetX = data.offsetX;
-                    this.offsetY = data.offsetY;
                     this.safariTimerAlways = data.safariTimerAlways;
                     this.hudScale = data.hudScale > 0 ? data.hudScale : 1.0f;
                     this.safariQuestMonGlow = data.safariQuestMonGlow != null ? data.safariQuestMonGlow : true;
                     this.hudStyle = data.hudStyle != null ? HudStyle.valueOf(data.hudStyle) : HudStyle.SOLID;
                     this.safariMenuEnabled = data.safariMenuEnabled != null ? data.safariMenuEnabled : true;
+                    this.hudLayout = data.hudLayout != null ? HudLayout.valueOf(data.hudLayout) : HudLayout.FULL;
+
+                    this.offsetX = data.offsetX;
+                    this.offsetY = data.offsetY;
+                    this.refScreenWidth = data.refScreenWidth != null ? data.refScreenWidth : 0;
+
                     this.daycareMenuEnabled = data.daycareMenuEnabled != null ? data.daycareMenuEnabled : true;
                     this.daycareSoundsEnabled = data.daycareSoundsEnabled != null ? data.daycareSoundsEnabled : true;
                     this.daycareAnchor = data.daycareAnchor != null ? Anchor.valueOf(data.daycareAnchor) : Anchor.TOP_LEFT;
                     this.daycareOffsetX = data.daycareOffsetX != null ? data.daycareOffsetX : 5;
                     this.daycareOffsetY = data.daycareOffsetY != null ? data.daycareOffsetY : 5;
+                    this.daycareRefScreenWidth = data.daycareRefScreenWidth != null ? data.daycareRefScreenWidth : 0;
                     this.daycareScale = data.daycareScale != null && data.daycareScale > 0 ? data.daycareScale : 1.0f;
                     this.daycareEggsHatchingSlots = data.daycareEggsHatchingSlots != null ? data.daycareEggsHatchingSlots : 5;
+
                     this.wtMenuEnabled = data.wtMenuEnabled != null ? data.wtMenuEnabled : true;
                     this.wtShowChatReminders = data.wtShowChatReminders != null ? data.wtShowChatReminders : true;
                     this.wtSoundsEnabled = data.wtSoundsEnabled != null ? data.wtSoundsEnabled : true;
                     this.wtAnchor = data.wtAnchor != null ? Anchor.valueOf(data.wtAnchor) : Anchor.BOTTOM_RIGHT;
                     this.wtOffsetX = data.wtOffsetX != null ? data.wtOffsetX : 5;
                     this.wtOffsetY = data.wtOffsetY != null ? data.wtOffsetY : 5;
+                    this.wtRefScreenWidth = data.wtRefScreenWidth != null ? data.wtRefScreenWidth : 0;
                     this.wtScale = data.wtScale != null && data.wtScale > 0 ? data.wtScale : 1.0f;
-                    SigsAcademyAddons.LOGGER.info("[HudConfig] Loaded HUD position: anchor={}, offsetX={}, offsetY={}",
-                            anchor, offsetX, offsetY);
+
+                    this.joinedGroup = data.joinedGroup != null ? new ArrayList<>(data.joinedGroup) : new ArrayList<>();
+                    this.groupScale = data.groupScale != null && data.groupScale > 0 ? data.groupScale : 1.0f;
+                    this.groupAnchor = data.groupAnchor != null ? Anchor.valueOf(data.groupAnchor) : Anchor.TOP_LEFT;
+                    this.groupOffsetX = data.groupOffsetX != null ? data.groupOffsetX : 5;
+                    this.groupOffsetY = data.groupOffsetY != null ? data.groupOffsetY : 5;
+                    this.groupRefScreenWidth = data.groupRefScreenWidth != null ? data.groupRefScreenWidth : 0;
                 }
             }
         } catch (Exception e) {
@@ -420,13 +522,17 @@ public class HudConfig {
                 .resolve(CONFIG_FILE);
     }
 
-    private record ConfigData(String anchor, int offsetX, int offsetY, boolean safariTimerAlways, float hudScale,
-                               Boolean safariQuestMonGlow, String hudStyle,
-                               Boolean safariMenuEnabled,
-                               Boolean daycareMenuEnabled, Boolean daycareSoundsEnabled,
-                               String daycareAnchor, Integer daycareOffsetX, Integer daycareOffsetY,
-                               Float daycareScale, Integer daycareEggsHatchingSlots,
-                               Boolean wtMenuEnabled, Boolean wtShowChatReminders, Boolean wtSoundsEnabled,
-                               String wtAnchor, Integer wtOffsetX, Integer wtOffsetY, Float wtScale) {
+    private record ConfigData(
+            String anchor, int offsetX, int offsetY, boolean safariTimerAlways, float hudScale,
+            Boolean safariQuestMonGlow, String hudStyle, Boolean safariMenuEnabled,
+            Boolean daycareMenuEnabled, Boolean daycareSoundsEnabled,
+            String daycareAnchor, Integer daycareOffsetX, Integer daycareOffsetY,
+            Float daycareScale, Integer daycareEggsHatchingSlots,
+            Boolean wtMenuEnabled, Boolean wtShowChatReminders, Boolean wtSoundsEnabled,
+            String wtAnchor, Integer wtOffsetX, Integer wtOffsetY, Float wtScale,
+            String hudLayout,
+            Integer refScreenWidth, Integer daycareRefScreenWidth, Integer wtRefScreenWidth,
+            List<String> joinedGroup, Float groupScale, String groupAnchor,
+            Integer groupOffsetX, Integer groupOffsetY, Integer groupRefScreenWidth) {
     }
 }

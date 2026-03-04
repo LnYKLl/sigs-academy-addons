@@ -243,6 +243,15 @@ public class DaycareManager {
                 }
             }
         }
+        if (closest == null) {
+            for (DaycareState.ClaimedEgg egg : claimedEggs) {
+                if (!egg.isCompleted()) {
+                    if (closest == null || egg.getRemainingMs() < closest.getRemainingMs()) {
+                        closest = egg;
+                    }
+                }
+            }
+        }
         return closest != null ? closest.getDisplayLabel() : null;
     }
 
@@ -257,10 +266,18 @@ public class DaycareManager {
                 }
             }
         }
+        if (closestEgg == null) {
+            for (DaycareState.ClaimedEgg egg : claimedEggs) {
+                if (!egg.isCompleted()) {
+                    if (closestEgg == null || egg.getRemainingMs() < closestEgg.getRemainingMs()) {
+                        closestEgg = egg;
+                    }
+                }
+            }
+        }
 
         if (closestEgg != null) {
             closestEgg.setCompleted(true);
-
         }
 
         eggsHatchedSinceMenuOpen++;

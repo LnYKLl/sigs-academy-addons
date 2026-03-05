@@ -256,8 +256,8 @@ public class SafariHudRenderer implements HudPanel {
                     font.width(prefix) + font.width(safariManager.getRemainingTimeFormatted()) + PADDING * 2);
         }
 
-        for (int i = 0; i < safariHuntManager.getActiveHunts().size(); i++) {
-            SafariHuntData hunt = safariHuntManager.getActiveHunts().get(i);
+        List<SafariHuntData> hunts = safariHuntManager.getActiveHunts();
+        for (SafariHuntData hunt : hunts) {
             int lineWidth = font.width(hunt.getDisplayName()) + 4
                     + font.width("[" + hunt.getCaught() + "/" + hunt.getTotal() + "]");
             String resetText = hunt.getResetCountdownFormatted();
@@ -267,7 +267,7 @@ public class SafariHudRenderer implements HudPanel {
             maxWidth = Math.max(maxWidth, lineWidth + PADDING * 2);
         }
 
-        if (!safariHuntManager.hasActiveHunts() && showTimer) {
+        if (hunts.isEmpty() && showTimer) {
             maxWidth = Math.max(maxWidth, font.width("No hunts loaded") + PADDING * 2);
         }
 

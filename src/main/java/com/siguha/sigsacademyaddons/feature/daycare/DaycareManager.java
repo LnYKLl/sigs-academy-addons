@@ -4,6 +4,9 @@ import com.siguha.sigsacademyaddons.SigsAcademyAddons;
 import com.siguha.sigsacademyaddons.config.HudConfig;
 import com.siguha.sigsacademyaddons.data.DaycareDataStore;
 import com.siguha.sigsacademyaddons.data.EggCycleLookup;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.network.chat.Component;
 
 import java.util.*;
 
@@ -19,9 +22,19 @@ public class DaycareManager {
     private final Map<Integer, DaycareState.PenState> pens = new LinkedHashMap<>();
     private final List<DaycareState.ClaimedEgg> claimedEggs = new ArrayList<>();
     private final Map<Integer, String> penSpeciesMemory = new HashMap<>();
+    private final Set<Integer> pensUsedForEggCreation = new HashSet<>();
+    private int lastIdentifiedEggCreatorPen = -1;
+    private long lastEggCreationTimeMs = 0;
     private int eggsHatchedSinceMenuOpen = 0;
     private long lastDaycareMenuCloseTimeMs = 0;
     private String pendingNavTarget = null;
+    private float hatchSpeedMultiplier = 1.0f;
+    private boolean rankDetected = false;
+    private int rankDetectDelay = 0;
+
+    private static final int RANK_DETECT_DELAY_TICKS = 100;
+    private static final int PRISMATIC_CODEPOINT = 0x4E10;
+    private static final int STELLAR_CODEPOINT = 0x18832;
 
     public DaycareManager(DaycareDataStore dataStore, DaycareSoundPlayer soundPlayer, HudConfig hudConfig) {
         this.dataStore = dataStore;
@@ -36,6 +49,9 @@ public class DaycareManager {
         SigsAcademyAddons.LOGGER.info("[SAA Daycare] Server joined: {} — restoring state (had {} pens, {} eggs in memory)",
                 address, existingPens, existingEggs);
         restoreState();
+        rankDetected = false;
+        rankDetectDelay = 0;
+        hatchSpeedMultiplier = 1.0f;
     }
 
     public void onServerDisconnected() {
@@ -48,6 +64,9 @@ public class DaycareManager {
         eggsHatchedSinceMenuOpen = 0;
         lastDaycareMenuCloseTimeMs = 0;
         pendingNavTarget = null;
+        pensUsedForEggCreation.clear();
+        rankDetected = false;
+        hatchSpeedMultiplier = 1.0f;
     }
 
     public void onMainMenuScraped(List<ScrapedPenButton> scrapedButtons) {
@@ -109,7 +128,7 @@ public class DaycareManager {
             }
 
             long now = System.currentTimeMillis();
-            long hatchTimeMs = calculateHatchTimeMs(eggSpecies);
+            long hatchTimeMs = calculateAdjustedHatchTimeMs(eggSpecies);
             claimedEggs.add(new DaycareState.ClaimedEgg(eggSpecies, now, now + hatchTimeMs));
             SigsAcademyAddons.LOGGER.info("[SAA Daycare] Pen {} egg CLAIMED — species={}, hatchTime={}s, totalEggs={}",
                     scraped.penNumber(), eggSpecies, hatchTimeMs / 1000, claimedEggs.size());
@@ -192,18 +211,33 @@ public class DaycareManager {
     }
 
     public void onEggCreated() {
+        if (lastIdentifiedEggCreatorPen > 0) {
+            pensUsedForEggCreation.add(lastIdentifiedEggCreatorPen);
+        }
+        lastEggCreationTimeMs = System.currentTimeMillis();
         soundPlayer.playEggCreatedSound();
     }
 
-    public String getEggCreatorSpecies() {
+    private DaycareState.PenState findBestBreedingPen() {
+        if (!pensUsedForEggCreation.isEmpty()
+                && System.currentTimeMillis() - lastEggCreationTimeMs > 5000) {
+            pensUsedForEggCreation.clear();
+        }
         DaycareState.PenState bestPen = null;
         for (DaycareState.PenState pen : pens.values()) {
-            if (pen.getStage() == DaycareState.BreedingStage.BREEDING) {
+            if (pen.getStage() == DaycareState.BreedingStage.BREEDING
+                    && !pensUsedForEggCreation.contains(pen.getPenNumber())) {
                 if (bestPen == null || pen.getRemainingMs() < bestPen.getRemainingMs()) {
                     bestPen = pen;
                 }
             }
         }
+        lastIdentifiedEggCreatorPen = bestPen != null ? bestPen.getPenNumber() : -1;
+        return bestPen;
+    }
+
+    public String getEggCreatorSpecies() {
+        DaycareState.PenState bestPen = findBestBreedingPen();
         if (bestPen != null) {
             String species = bestPen.getInferredEggSpecies();
             if (species != null) return species;
@@ -213,14 +247,7 @@ public class DaycareManager {
     }
 
     public int getEggCreatorPenNumber() {
-        DaycareState.PenState bestPen = null;
-        for (DaycareState.PenState pen : pens.values()) {
-            if (pen.getStage() == DaycareState.BreedingStage.BREEDING) {
-                if (bestPen == null || pen.getRemainingMs() < bestPen.getRemainingMs()) {
-                    bestPen = pen;
-                }
-            }
-        }
+        DaycareState.PenState bestPen = findBestBreedingPen();
         return bestPen != null ? bestPen.getPenNumber() : -1;
     }
 
@@ -294,6 +321,14 @@ public class DaycareManager {
     }
 
     public void tick() {
+        if (!rankDetected) {
+            rankDetectDelay++;
+            if (rankDetectDelay >= RANK_DETECT_DELAY_TICKS) {
+                detectPlayerRank();
+                rankDetected = true;
+            }
+        }
+
         claimedEggs.removeIf(e -> e.isCompleted()
                 && System.currentTimeMillis() - e.getEstimatedHatchTimeMs() > 5000);
 
@@ -360,6 +395,7 @@ public class DaycareManager {
         pens.clear();
         claimedEggs.clear();
         penSpeciesMemory.clear();
+        pensUsedForEggCreation.clear();
         eggsHatchedSinceMenuOpen = 0;
         dataStore.clear();
     }
@@ -378,6 +414,50 @@ public class DaycareManager {
         }
 
         return DEFAULT_HATCH_ESTIMATE_MS;
+    }
+
+    private long calculateAdjustedHatchTimeMs(String speciesName) {
+        long baseTime = calculateHatchTimeMs(speciesName);
+        if (hatchSpeedMultiplier > 1.0f) {
+            return (long) (baseTime / hatchSpeedMultiplier);
+        }
+        return baseTime;
+    }
+
+    private void detectPlayerRank() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getConnection() == null || mc.player == null) return;
+
+        String displayText = null;
+
+        PlayerInfo playerInfo = mc.getConnection().getPlayerInfo(mc.player.getUUID());
+        if (playerInfo != null && playerInfo.getTabListDisplayName() != null) {
+            displayText = playerInfo.getTabListDisplayName().getString();
+        }
+
+        if (displayText == null || displayText.isEmpty()) {
+            var scoreboard = mc.player.getScoreboard();
+            var team = scoreboard.getPlayersTeam(mc.player.getScoreboardName());
+            if (team != null) {
+                Component prefix = team.getPlayerPrefix();
+                Component suffix = team.getPlayerSuffix();
+                displayText = prefix.getString() + mc.player.getScoreboardName() + suffix.getString();
+            }
+        }
+
+        if (displayText != null && !displayText.isEmpty()) {
+            boolean hasPrismatic = displayText.codePoints().anyMatch(cp -> cp == PRISMATIC_CODEPOINT);
+            boolean hasStellar = displayText.codePoints().anyMatch(cp -> cp == STELLAR_CODEPOINT);
+
+            if (hasPrismatic || hasStellar) {
+                hatchSpeedMultiplier = 1.5f;
+            }
+        }
+
+        float manual = hudConfig.getManualHatchMultiplier();
+        if (manual > 0) {
+            hatchSpeedMultiplier = manual;
+        }
     }
 
     private void persistState() {

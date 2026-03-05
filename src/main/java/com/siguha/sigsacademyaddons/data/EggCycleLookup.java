@@ -10,7 +10,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
-// reads egg cycle directly from bundled cobblemon species files since it doesn't package the actual egg cycle in the species data
 public class EggCycleLookup {
 
     private static final String[] GENERATION_FOLDERS = {

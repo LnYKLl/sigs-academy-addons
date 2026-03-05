@@ -20,7 +20,8 @@ public class SafariHuntManager {
     private static final Pattern STAR_PATTERN = Pattern.compile("[\\u2B50\\u2605\\u2606*]+");
 
     private final HuntDataStore dataStore;
-    private List<SafariHuntData> activeHunts = new ArrayList<>();
+    private List<SafariHuntData> activeHunts;
+    private List<SafariHuntData> cachedSortedHunts;
 
     private int pendingUpdates = 0;
 
@@ -33,8 +34,8 @@ public class SafariHuntManager {
         activeHunts.removeIf(SafariHuntData::isResetExpired);
         int removed = before - activeHunts.size();
         if (removed > 0) {
+            cachedSortedHunts = null;
             dataStore.save(activeHunts);
-
         }
     }
 
@@ -49,6 +50,7 @@ public class SafariHuntManager {
         activeHunts.removeIf(SafariHuntData::isResetExpired);
 
         if (activeHunts.size() < before) {
+            cachedSortedHunts = null;
             dataStore.save(activeHunts);
         }
     }
@@ -72,6 +74,7 @@ public class SafariHuntManager {
 
         if (!parsedHunts.isEmpty()) {
             this.activeHunts = parsedHunts;
+            this.cachedSortedHunts = null;
             this.pendingUpdates = 0;
             dataStore.save(activeHunts);
         }
@@ -110,6 +113,8 @@ public class SafariHuntManager {
             hunt.incrementCaught();
         }
 
+        cachedSortedHunts = null;
+
         if (pendingUpdates > 0) {
             pendingUpdates--;
         }
@@ -137,7 +142,6 @@ public class SafariHuntManager {
                         String normalizedEggGroup = SigsAcademyAddons.normalizeForComparison(pokemonEggGroup);
 
                         if (normalizedEggGroup.equals(normalizedTarget)) {
-
                             return true;
                         }
                     }
@@ -153,10 +157,12 @@ public class SafariHuntManager {
     }
 
     public List<SafariHuntData> getActiveHunts() {
-        List<SafariHuntData> sorted = new ArrayList<>(activeHunts);
-        sorted.sort(Comparator.comparingInt(h -> h.getCategory().ordinal()));
-
-        return Collections.unmodifiableList(sorted);
+        if (cachedSortedHunts == null) {
+            List<SafariHuntData> sorted = new ArrayList<>(activeHunts);
+            sorted.sort(Comparator.comparingInt(h -> h.getCategory().ordinal()));
+            cachedSortedHunts = Collections.unmodifiableList(sorted);
+        }
+        return cachedSortedHunts;
     }
 
     public boolean hasActiveHunts() {
@@ -165,6 +171,7 @@ public class SafariHuntManager {
 
     public void clearHunts() {
         activeHunts.clear();
+        cachedSortedHunts = null;
         dataStore.save(activeHunts);
     }
 
@@ -265,7 +272,6 @@ public class SafariHuntManager {
         String stripped = text.replaceAll("\u00A7[0-9a-fk-or]", "");
         stripped = stripped.replaceAll("[\\u0E00-\\u0E7F]", "");
         stripped = stripped.replaceAll("[\\u2B50\\u2605\\u2606]", "");
-        
         return stripped.trim();
     }
 

@@ -129,6 +129,8 @@ public class HudConfigScreen extends Screen {
     private boolean resizeFromLeft;
     private boolean resizeFromTop;
 
+    private boolean suppressionMenuExpanded = false;
+
     public HudConfigScreen(HudConfig hudConfig, SafariManager safariManager,
                             SafariHuntManager safariHuntManager, DaycareManager daycareManager,
                             WondertradeManager wondertradeManager) {
@@ -283,6 +285,45 @@ public class HudConfigScreen extends Screen {
         drawOutline(graphics, bx, by, resetScaleW, buttonH, COLOR_BUTTON_BORDER);
         graphics.drawString(this.font, resetScaleText, bx + BUTTON_PADDING_X,
                 by + BUTTON_PADDING_Y, COLOR_BUTTON_TEXT, true);
+
+        by += buttonH + BUTTON_SPACING;
+
+        String suppressText = "Suppression Rules " + (suppressionMenuExpanded ? "\u25BC" : "\u25B6");
+        int suppressW = this.font.width(suppressText) + BUTTON_PADDING_X * 2;
+        boolean suppressHovered = mouseX >= bx && mouseX <= bx + suppressW
+                && mouseY >= by && mouseY <= by + buttonH;
+        graphics.fill(bx, by, bx + suppressW, by + buttonH,
+                suppressHovered ? COLOR_BUTTON_BG_HOVER : COLOR_BUTTON_BG);
+        drawOutline(graphics, bx, by, suppressW, buttonH, COLOR_BUTTON_BORDER);
+        graphics.drawString(this.font, suppressText, bx + BUTTON_PADDING_X,
+                by + BUTTON_PADDING_Y, COLOR_BUTTON_TEXT, true);
+
+        if (suppressionMenuExpanded) {
+            by += buttonH + BUTTON_SPACING;
+            int childX = bx + 4;
+
+            String[] labels = {"Raids", "Hideouts", "Dungeons", "Battles", "Hide HUD"};
+            boolean[] values = {
+                    hudConfig.isSuppressInRaids(), hudConfig.isSuppressInHideouts(),
+                    hudConfig.isSuppressInDungeons(), hudConfig.isSuppressInBattles(),
+                    hudConfig.isHudHidden()
+            };
+
+            for (int i = 0; i < labels.length; i++) {
+                boolean enabled = values[i];
+                String label = labels[i] + ": " + (enabled ? "ON" : "OFF");
+                int labelColor = enabled ? 0xFF55FF55 : 0xFFFF5555;
+                int labelW = this.font.width(label) + BUTTON_PADDING_X * 2;
+                boolean hovered = mouseX >= childX && mouseX <= childX + labelW
+                        && mouseY >= by && mouseY <= by + buttonH;
+                graphics.fill(childX, by, childX + labelW, by + buttonH,
+                        hovered ? COLOR_BUTTON_BG_HOVER : COLOR_BUTTON_BG);
+                drawOutline(graphics, childX, by, labelW, buttonH, 0xFF888888);
+                graphics.drawString(this.font, label, childX + BUTTON_PADDING_X,
+                        by + BUTTON_PADDING_Y, labelColor, true);
+                by += buttonH + BUTTON_SPACING;
+            }
+        }
     }
 
     private void renderPanel(GuiGraphics graphics, PanelState panel, int mouseX, int mouseY, int panelColor) {
@@ -996,6 +1037,24 @@ public class HudConfigScreen extends Screen {
         } else if (buttonClickResult == 1) {
             resetScales();
             return true;
+        } else if (buttonClickResult == 2) {
+            suppressionMenuExpanded = !suppressionMenuExpanded;
+            return true;
+        } else if (buttonClickResult == 3) {
+            hudConfig.setSuppressInRaids(!hudConfig.isSuppressInRaids());
+            return true;
+        } else if (buttonClickResult == 4) {
+            hudConfig.setSuppressInHideouts(!hudConfig.isSuppressInHideouts());
+            return true;
+        } else if (buttonClickResult == 5) {
+            hudConfig.setSuppressInDungeons(!hudConfig.isSuppressInDungeons());
+            return true;
+        } else if (buttonClickResult == 6) {
+            hudConfig.setSuppressInBattles(!hudConfig.isSuppressInBattles());
+            return true;
+        } else if (buttonClickResult == 7) {
+            hudConfig.setHudHidden(!hudConfig.isHudHidden());
+            return true;
         }
 
         if (groupState != null && isInsideGroup(mx, my) && dragMode == DragMode.NONE) {
@@ -1439,6 +1498,32 @@ public class HudConfigScreen extends Screen {
         int resetScaleW = this.font.width("Reset Scale") + BUTTON_PADDING_X * 2;
         if (mx >= bx && mx <= bx + resetScaleW && my >= by && my <= by + buttonH) {
             return 1;
+        }
+
+        by += buttonH + BUTTON_SPACING;
+        String suppressText = "Suppression Rules " + (suppressionMenuExpanded ? "\u25BC" : "\u25B6");
+        int suppressW = this.font.width(suppressText) + BUTTON_PADDING_X * 2;
+        if (mx >= bx && mx <= bx + suppressW && my >= by && my <= by + buttonH) {
+            return 2;
+        }
+
+        if (suppressionMenuExpanded) {
+            by += buttonH + BUTTON_SPACING;
+            int childX = bx + 4;
+            String[] labels = {"Raids", "Hideouts", "Dungeons", "Battles", "Hide HUD"};
+            boolean[] values = {
+                    hudConfig.isSuppressInRaids(), hudConfig.isSuppressInHideouts(),
+                    hudConfig.isSuppressInDungeons(), hudConfig.isSuppressInBattles(),
+                    hudConfig.isHudHidden()
+            };
+            for (int i = 0; i < labels.length; i++) {
+                String label = labels[i] + ": " + (values[i] ? "ON" : "OFF");
+                int labelW = this.font.width(label) + BUTTON_PADDING_X * 2;
+                if (mx >= childX && mx <= childX + labelW && my >= by && my <= by + buttonH) {
+                    return 3 + i;
+                }
+                by += buttonH + BUTTON_SPACING;
+            }
         }
 
         return -1;

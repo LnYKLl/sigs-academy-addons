@@ -5,7 +5,10 @@
 	"mixins": [],
 	"client": [
 		"EntityGlowMixin",
-		"EntityOutlineColorMixin"
+		"EntityOutlineColorMixin",
+		"ParticlePacketMixin",
+		"LevelParticleMixin",
+		"ParticleEngineMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

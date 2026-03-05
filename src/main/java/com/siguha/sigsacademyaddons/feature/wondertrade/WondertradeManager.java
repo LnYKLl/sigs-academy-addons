@@ -156,7 +156,7 @@ public class WondertradeManager {
         long remaining = getRemainingMs();
         float progress = 1.0f - ((float) remaining / COOLDOWN_DURATION_MS);
 
-        return Math.max(0f, Math.min(1f, progress));
+        return Math.clamp(progress, 0f, 1f);
     }
 
     private void checkForTradeCompletion() {
@@ -194,7 +194,6 @@ public class WondertradeManager {
 
             return uuids;
         } catch (Exception e) {
-            
             return null;
         }
     }

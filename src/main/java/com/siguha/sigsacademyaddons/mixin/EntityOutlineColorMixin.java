@@ -9,7 +9,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// applying quest color to outline
 @Mixin(Entity.class)
 public abstract class EntityOutlineColorMixin {
 

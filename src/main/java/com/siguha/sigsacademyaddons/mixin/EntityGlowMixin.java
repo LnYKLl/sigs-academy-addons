@@ -10,7 +10,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-// spectral glow on quest relevant mons (configurable via safariQuestMonGlow)
 @Mixin(Entity.class)
 public abstract class EntityGlowMixin {
 

@@ -90,7 +90,7 @@ public class CatchDetector {
 
             ticksSinceLastLog++;
             if (ticksSinceLastLog >= DEBUG_LOG_INTERVAL) {
-                SigsAcademyAddons.LOGGER.debug("[SAA CatchDetector] monitoring party",
+                SigsAcademyAddons.LOGGER.debug("[SAA CatchDetector] monitoring party: {} uuids, PC: {}",
                         currentUuids.size(),
                         pcAvailable ? (knownPcUuids != null ? knownPcUuids.size() + " Pokemon" : "pending") : "unavailable");
                 ticksSinceLastLog = 0;
@@ -218,7 +218,6 @@ public class CatchDetector {
             if (!species.getEggGroups().isEmpty()) {
                 for (var eggGroup : species.getEggGroups()) {
                     eggGroups.add(eggGroup.name());
-
                 }
             } else {
                 Species registrySpecies = PokemonSpecies.INSTANCE.getByName(speciesName.toLowerCase());
@@ -226,7 +225,6 @@ public class CatchDetector {
                 if (registrySpecies != null && !registrySpecies.getEggGroups().isEmpty()) {
                     for (var eggGroup : registrySpecies.getEggGroups()) {
                         eggGroups.add(eggGroup.name());
-
                     }
                 }
             }
@@ -240,7 +238,6 @@ public class CatchDetector {
                 for (String eg : jsonEggGroups) {
                     eggGroups.add(eg.toUpperCase());
                 }
-
             }
         }
 

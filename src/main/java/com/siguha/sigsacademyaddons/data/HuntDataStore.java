@@ -16,7 +16,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-// json persistence for safari hunt data, keyed by server address
 public class HuntDataStore {
 
     private static final String HUNTS_FILE = "hunts.json";

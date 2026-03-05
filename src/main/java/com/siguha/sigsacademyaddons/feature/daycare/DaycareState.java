@@ -79,7 +79,6 @@ public class DaycareState {
 
             if (p1.contains("ditto") && !p2.contains("ditto")) {
                 inferredEggSpecies = pokemon2;
-                
             } else {
                 inferredEggSpecies = pokemon1;
             }

@@ -1,6 +1,7 @@
 package com.siguha.sigsacademyaddons.hud;
 
 import com.siguha.sigsacademyaddons.config.HudConfig;
+import com.siguha.sigsacademyaddons.feature.suppression.SuppressionManager;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -13,10 +14,12 @@ public class HudGroupRenderer {
     private static final int COLOR_BG = 0xAA000000;
 
     private final HudConfig hudConfig;
+    private final SuppressionManager suppressionManager;
     private final Map<String, HudPanel> panelRegistry = new LinkedHashMap<>();
 
-    public HudGroupRenderer(HudConfig hudConfig) {
+    public HudGroupRenderer(HudConfig hudConfig, SuppressionManager suppressionManager) {
         this.hudConfig = hudConfig;
+        this.suppressionManager = suppressionManager;
     }
 
     public void registerPanel(HudPanel panel) {
@@ -26,6 +29,7 @@ public class HudGroupRenderer {
     public void onHudRender(GuiGraphics graphics, DeltaTracker deltaTracker) {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || client.options.hideGui) return;
+        if (suppressionManager.isSuppressed()) return;
 
         List<String> groupOrder = hudConfig.getJoinedGroup();
         Set<String> inGroup = new HashSet<>(groupOrder);

@@ -11,7 +11,6 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-// reads egg groups from cobblemon species json in the mod jar
 public class EggGroupLookup {
 
     private static final String[] GENERATION_FOLDERS = {
@@ -31,12 +30,10 @@ public class EggGroupLookup {
 
         String key = speciesName.toLowerCase();
 
-        // check cache first
         if (cache.containsKey(key)) {
             return cache.get(key);
         }
 
-        // load from species json
         Set<String> eggGroups = loadFromSpeciesData(key);
         cache.put(key, eggGroups);
 
@@ -49,7 +46,6 @@ public class EggGroupLookup {
         return eggGroups;
     }
 
-    // searches generation folders on classpath for species json
     private static Set<String> loadFromSpeciesData(String speciesNameLower) {
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
 

@@ -54,6 +54,7 @@ public class HudConfig {
     private int daycareRefScreenWidth = 0;
     private float daycareScale = 1.0f;
     private int daycareEggsHatchingSlots = 5;
+    private float manualHatchMultiplier = 0f;
 
     private boolean wtMenuEnabled = true;
     private boolean wtShowChatReminders = true;
@@ -70,6 +71,12 @@ public class HudConfig {
     private int groupOffsetX = 5;
     private int groupOffsetY = 5;
     private int groupRefScreenWidth = 0;
+
+    private boolean suppressInRaids = true;
+    private boolean suppressInHideouts = false;
+    private boolean suppressInDungeons = false;
+    private boolean suppressInBattles = true;
+    private boolean hudHidden = false;
 
     public HudConfig() {
         load();
@@ -279,6 +286,15 @@ public class HudConfig {
         save();
     }
 
+    public float getManualHatchMultiplier() {
+        return manualHatchMultiplier;
+    }
+
+    public void setManualHatchMultiplier(float manualHatchMultiplier) {
+        this.manualHatchMultiplier = manualHatchMultiplier;
+        save();
+    }
+
     public void setDaycarePositionFromAbsolute(int panelX, int panelY, int panelWidth, int panelHeight,
                                                 int screenWidth, int screenHeight) {
         int centerX = panelX + panelWidth / 2;
@@ -415,6 +431,41 @@ public class HudConfig {
         };
     }
 
+    public boolean isSuppressInRaids() { return suppressInRaids; }
+
+    public void setSuppressInRaids(boolean suppressInRaids) {
+        this.suppressInRaids = suppressInRaids;
+        save();
+    }
+
+    public boolean isSuppressInHideouts() { return suppressInHideouts; }
+
+    public void setSuppressInHideouts(boolean suppressInHideouts) {
+        this.suppressInHideouts = suppressInHideouts;
+        save();
+    }
+
+    public boolean isSuppressInDungeons() { return suppressInDungeons; }
+
+    public void setSuppressInDungeons(boolean suppressInDungeons) {
+        this.suppressInDungeons = suppressInDungeons;
+        save();
+    }
+
+    public boolean isSuppressInBattles() { return suppressInBattles; }
+
+    public void setSuppressInBattles(boolean suppressInBattles) {
+        this.suppressInBattles = suppressInBattles;
+        save();
+    }
+
+    public boolean isHudHidden() { return hudHidden; }
+
+    public void setHudHidden(boolean hudHidden) {
+        this.hudHidden = hudHidden;
+        save();
+    }
+
     public void setGroupPositionFromAbsolute(int panelX, int panelY, int panelWidth, int panelHeight,
                                               int screenWidth, int screenHeight) {
         int centerY = panelY + panelHeight / 2;
@@ -454,7 +505,9 @@ public class HudConfig {
                     refScreenWidth, daycareRefScreenWidth, wtRefScreenWidth,
                     joinedGroup.isEmpty() ? null : new ArrayList<>(joinedGroup),
                     groupScale, groupAnchor.name(), groupOffsetX, groupOffsetY,
-                    groupRefScreenWidth);
+                    groupRefScreenWidth,
+                    suppressInRaids, suppressInHideouts, suppressInDungeons,
+                    suppressInBattles, hudHidden);
             try (Writer writer = Files.newBufferedWriter(filePath)) {
                 GSON.toJson(data, writer);
             }
@@ -509,6 +562,12 @@ public class HudConfig {
                     this.groupOffsetX = data.groupOffsetX != null ? data.groupOffsetX : 5;
                     this.groupOffsetY = data.groupOffsetY != null ? data.groupOffsetY : 5;
                     this.groupRefScreenWidth = data.groupRefScreenWidth != null ? data.groupRefScreenWidth : 0;
+
+                    this.suppressInRaids = data.suppressInRaids != null ? data.suppressInRaids : true;
+                    this.suppressInHideouts = data.suppressInHideouts != null ? data.suppressInHideouts : false;
+                    this.suppressInDungeons = data.suppressInDungeons != null ? data.suppressInDungeons : false;
+                    this.suppressInBattles = data.suppressInBattles != null ? data.suppressInBattles : true;
+                    this.hudHidden = data.hudHidden != null ? data.hudHidden : false;
                 }
             }
         } catch (Exception e) {
@@ -533,6 +592,8 @@ public class HudConfig {
             String hudLayout,
             Integer refScreenWidth, Integer daycareRefScreenWidth, Integer wtRefScreenWidth,
             List<String> joinedGroup, Float groupScale, String groupAnchor,
-            Integer groupOffsetX, Integer groupOffsetY, Integer groupRefScreenWidth) {
+            Integer groupOffsetX, Integer groupOffsetY, Integer groupRefScreenWidth,
+            Boolean suppressInRaids, Boolean suppressInHideouts, Boolean suppressInDungeons,
+            Boolean suppressInBattles, Boolean hudHidden) {
     }
 }

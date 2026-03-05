@@ -119,7 +119,7 @@ public class HuntEntityTracker {
                     if (species.getSecondaryType() != null) {
                         types.add(species.getSecondaryType().getName());
                     }
-                } catch (Exception e) {
+                } catch (Exception ignored) {
                 }
 
                 Set<String> eggGroups = EggGroupLookup.getEggGroups(speciesName);
@@ -132,7 +132,7 @@ public class HuntEntityTracker {
                         break;
                     }
                 }
-            } catch (Exception e) {
+            } catch (Exception ignored) {
             }
         }
 

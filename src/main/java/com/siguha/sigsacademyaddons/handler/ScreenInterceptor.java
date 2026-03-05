@@ -471,7 +471,7 @@ public class ScreenInterceptor {
             String itemName = stack.getHoverName().getString()
                     .replaceAll("\u00A7[0-9a-fk-or]", "").trim();
 
-            if (stack.is(Items.PAPER) && (itemName == null || itemName.isEmpty())) {
+            if (stack.is(Items.PAPER) && itemName.isEmpty()) {
                 var cmd = stack.get(DataComponents.CUSTOM_MODEL_DATA);
                 if (cmd != null) {
                     int value = cmd.value();

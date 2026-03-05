@@ -2,6 +2,7 @@ package com.siguha.sigsacademyaddons.handler;
 
 import com.siguha.sigsacademyaddons.SigsAcademyAddons;
 import com.siguha.sigsacademyaddons.feature.daycare.DaycareManager;
+import com.siguha.sigsacademyaddons.feature.portal.PortalManager;
 import com.siguha.sigsacademyaddons.feature.safari.SafariHuntManager;
 import com.siguha.sigsacademyaddons.feature.safari.SafariManager;
 import com.siguha.sigsacademyaddons.feature.wondertrade.WondertradeManager;
@@ -22,6 +23,10 @@ public class ChatMessageHandler {
     private static final Pattern WT_COOLDOWN_PATTERN = Pattern.compile(
             "You are on cooldown for (\\d+) minutes?"
     );
+    private static final Pattern PORTAL_SPAWN_PATTERN = Pattern.compile(
+            "A tier (\\d+) (Team Hideout|Raid Portal) has opened\\s+nearby!",
+            Pattern.CASE_INSENSITIVE
+    );
 
     private static final String HUNT_PROGRESS_MESSAGE = "Safari Hunt progress updated!";
     private static final String EGG_CREATED_MESSAGE = "An egg was created!";
@@ -32,15 +37,17 @@ public class ChatMessageHandler {
     private final CatchDetector catchDetector;
     private final DaycareManager daycareManager;
     private final WondertradeManager wondertradeManager;
+    private final PortalManager portalManager;
 
     public ChatMessageHandler(SafariManager safariManager, SafariHuntManager safariHuntManager,
                               CatchDetector catchDetector, DaycareManager daycareManager,
-                              WondertradeManager wondertradeManager) {
+                              WondertradeManager wondertradeManager, PortalManager portalManager) {
         this.safariManager = safariManager;
         this.safariHuntManager = safariHuntManager;
         this.catchDetector = catchDetector;
         this.daycareManager = daycareManager;
         this.wondertradeManager = wondertradeManager;
+        this.portalManager = portalManager;
     }
 
     private static MutableComponent buildClickSuffix(String command) {
@@ -80,7 +87,45 @@ public class ChatMessageHandler {
             return message.copy().append(buildClickSuffix(command));
         }
 
+        Matcher portalMatcher = PORTAL_SPAWN_PATTERN.matcher(text);
+        if (portalMatcher.find()) {
+            try {
+                int tier = Integer.parseInt(portalMatcher.group(1));
+                String typeStr = portalMatcher.group(2).toLowerCase();
+                PortalManager.PortalType type = typeStr.contains("hideout")
+                        ? PortalManager.PortalType.HIDEOUT
+                        : PortalManager.PortalType.RAID;
+                int portalId = portalManager.registerPendingPortal(type, tier);
+                if (portalId >= 0) {
+                    return message.copy().append(buildPortalTrackSuffix(portalId));
+                } else {
+                    return message.copy().append(buildPortalUnableSuffix());
+                }
+            } catch (NumberFormatException e) {
+                SigsAcademyAddons.LOGGER.warn("[SAA Portal] Failed to parse portal tier from: {}", text);
+            }
+        }
+
         return message;
+    }
+
+    private static MutableComponent buildPortalTrackSuffix(int portalId) {
+        return Component.literal(" - ")
+                .withStyle(ChatFormatting.GREEN)
+                .append(Component.literal("Track")
+                        .withStyle(Style.EMPTY
+                                .withColor(ChatFormatting.AQUA)
+                                .withUnderlined(true)
+                                .withClickEvent(new ClickEvent(
+                                        ClickEvent.Action.RUN_COMMAND,
+                                        "/saa portal track " + portalId))));
+    }
+
+    private static MutableComponent buildPortalUnableSuffix() {
+        return Component.literal(" - ")
+                .withStyle(ChatFormatting.GRAY)
+                .append(Component.literal("Unable to locate")
+                        .withStyle(ChatFormatting.RED));
     }
 
     private static Component injectSpeciesAndAppendClick(String text, String species, String command) {
@@ -133,5 +178,6 @@ public class ChatMessageHandler {
             }
             return;
         }
+
     }
 }

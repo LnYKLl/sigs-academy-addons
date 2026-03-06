@@ -15,7 +15,7 @@ public abstract class EntityGlowMixin {
 
     @Inject(method = "isCurrentlyGlowing", at = @At("RETURN"), cancellable = true)
     private void sig_isCurrentlyGlowing(CallbackInfoReturnable<Boolean> cir) {
-        if (!((Object) this instanceof PokemonEntity)) return;
+        if (!((Object) this instanceof PokemonEntity pokemonEntity)) return;
         if (cir.getReturnValue()) return;
 
         HudConfig config = SigsAcademyAddonsClient.getHudConfig();
@@ -24,8 +24,7 @@ public abstract class EntityGlowMixin {
         HuntEntityTracker tracker = SigsAcademyAddonsClient.getHuntEntityTracker();
         if (tracker == null) return;
 
-        Entity self = (Entity) (Object) this;
-        if (tracker.isMatched(self.getId()) && tracker.hasLineOfSight(self.getId())) {
+        if (tracker.isMatched(pokemonEntity.getId()) && tracker.hasLineOfSight(pokemonEntity.getId())) {
             cir.setReturnValue(true);
         }
     }

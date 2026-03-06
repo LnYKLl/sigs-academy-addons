@@ -105,6 +105,8 @@ public class HuntEntityTracker {
 
         for (PokemonEntity pokemonEntity : nearbyPokemon) {
             try {
+                if (pokemonEntity.getOwnerUUID() != null) continue;
+
                 Pokemon pokemon = pokemonEntity.getPokemon();
                 if (pokemon == null) continue;
 

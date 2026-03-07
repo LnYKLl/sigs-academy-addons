@@ -1,13 +1,20 @@
 package com.siguha.sigsacademyaddons.handler;
 
+import com.cobblemon.mod.common.client.CobblemonClient;
+import com.cobblemon.mod.common.client.storage.ClientParty;
 import com.siguha.sigsacademyaddons.SigsAcademyAddons;
+import com.siguha.sigsacademyaddons.SigsAcademyAddonsClient;
+import com.siguha.sigsacademyaddons.config.HudConfig;
 import com.siguha.sigsacademyaddons.feature.daycare.DaycareManager;
 import com.siguha.sigsacademyaddons.feature.daycare.DaycareState;
 import com.siguha.sigsacademyaddons.feature.safari.SafariHuntManager;
 import com.siguha.sigsacademyaddons.feature.wondertrade.WondertradeManager;
+import com.siguha.sigsacademyaddons.mixin.ContainerScreenAccessor;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -19,6 +26,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.sounds.SoundEvents;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,6 +38,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ScreenInterceptor {
+
+    private static ScreenInterceptor instance;
 
     private static final Pattern PEN_LABEL_PATTERN = Pattern.compile("(?:Daycare )?Pen (\\d+)(.*)");
 
@@ -49,11 +59,26 @@ public class ScreenInterceptor {
 
     private boolean isWtScreen = false;
 
+    private static final int BABY_GUARD_DURATION = 100;
+    private static final int BABY_GUARD_FADE_TICKS = 20;
+
+    private enum BabyGuardPhase { NONE, EGG_WARNING, BREEDING_WARNING, PARTY_FULL_WARNING }
+    private BabyGuardPhase babyGuardPhase = BabyGuardPhase.NONE;
+    private String babyGuardMessage = null;
+    private int babyGuardConfirmButton = -1;
+    private int babyGuardTicksLeft = 0;
+    private int babyGuardSlotIndex = -1;
+
     public ScreenInterceptor(SafariHuntManager safariHuntManager, DaycareManager daycareManager,
                               WondertradeManager wondertradeManager) {
         this.safariHuntManager = safariHuntManager;
         this.daycareManager = daycareManager;
         this.wondertradeManager = wondertradeManager;
+        instance = this;
+    }
+
+    public static boolean shouldAllowContainerClick(AbstractContainerScreen<?> screen, int button) {
+        return instance == null || instance.handleBabyGuardClick(screen, button);
     }
 
     public void onScreenInit(Minecraft client, Screen screen, int scaledWidth, int scaledHeight) {
@@ -85,6 +110,7 @@ public class ScreenInterceptor {
         lastDaycareContentHash = 0;
         backpackTabActive = false;
         isWtScreen = false;
+        clearBabyGuard();
 
         ScreenEvents.remove(screen).register(removedScreen -> {
             if (isWtScreen) {
@@ -102,6 +128,9 @@ public class ScreenInterceptor {
                 wondertradeManager.onWtScreenClicked();
             }
         });
+
+        ScreenEvents.afterRender(screen).register((renderedScreen, graphics, mouseX, mouseY, tickDelta) ->
+                renderBabyGuardMessage(containerScreen, graphics, tickDelta));
 
         ScreenEvents.afterTick(screen).register(tickedScreen -> {
             ticksWaited++;
@@ -152,6 +181,13 @@ public class ScreenInterceptor {
                 if (daycareRescrapeCounter >= 10) {
                     daycareRescrapeCounter = 0;
                     scrapeDaycareView(containerScreen);
+                }
+            }
+
+            if (babyGuardTicksLeft > 0) {
+                babyGuardTicksLeft--;
+                if (babyGuardTicksLeft == 0) {
+                    clearBabyGuard();
                 }
             }
 
@@ -576,5 +612,191 @@ public class ScreenInterceptor {
             slotIdx++;
         }
         return hash;
+    }
+
+    private boolean handleBabyGuardClick(AbstractContainerScreen<?> containerScreen, int button) {
+        if (!isDaycareScreen && !looksLikeDaycareScreen(containerScreen)) return true;
+
+        HudConfig config = SigsAcademyAddonsClient.getHudConfig();
+        if (config == null || !config.isDaycareBabyGuards()) return true;
+        if (detectDaycareView(containerScreen.getMenu()) != DaycareView.PEN_VIEW) return true;
+
+        ContainerScreenAccessor accessor = (ContainerScreenAccessor) containerScreen;
+        Slot hovered = accessor.getHoveredSlot();
+        if (hovered == null || hovered.container instanceof net.minecraft.world.entity.player.Inventory) return true;
+
+        if (!isParentSlot(hovered)) {
+            clearBabyGuard();
+            return true;
+        }
+
+        int slotIdx = hovered.index;
+
+        if (babyGuardPhase != BabyGuardPhase.NONE && slotIdx != babyGuardSlotIndex) {
+            clearBabyGuard();
+        }
+
+        AbstractContainerMenu menu = containerScreen.getMenu();
+        boolean hasEgg = hasUnclaimedEgg(menu);
+        boolean breeding = isBreedingActive(menu);
+        boolean partyFull = (button == 1) && isPartyFull();
+        String clickName = (button == 0) ? "Left Click" : "Right Click";
+
+        if (babyGuardPhase != BabyGuardPhase.NONE && button == babyGuardConfirmButton) {
+            BabyGuardPhase nextPhase = nextGuardPhase(babyGuardPhase, breeding, partyFull);
+            if (nextPhase != null) {
+                activateBabyGuard(guardMessage(nextPhase, clickName), nextPhase,
+                        nextPhase == BabyGuardPhase.PARTY_FULL_WARNING ? 1 : button, slotIdx);
+                return false;
+            }
+            clearBabyGuard();
+            return true;
+        }
+
+        if (hasEgg) {
+            activateBabyGuard(
+                    "\u00A7eThere's an unclaimed egg in the parent slot! "
+                            + "If you're sure, " + clickName + " again to confirm.",
+                    BabyGuardPhase.EGG_WARNING, button, slotIdx);
+            return false;
+        }
+
+        if (breeding) {
+            activateBabyGuard(guardMessage(BabyGuardPhase.BREEDING_WARNING, clickName),
+                    BabyGuardPhase.BREEDING_WARNING, button, slotIdx);
+            return false;
+        }
+
+        if (partyFull) {
+            activateBabyGuard(guardMessage(BabyGuardPhase.PARTY_FULL_WARNING, clickName),
+                    BabyGuardPhase.PARTY_FULL_WARNING, 1, slotIdx);
+            return false;
+        }
+
+        clearBabyGuard();
+        return true;
+    }
+
+    private BabyGuardPhase nextGuardPhase(BabyGuardPhase current, boolean breeding, boolean partyFull) {
+        if (current == BabyGuardPhase.EGG_WARNING && breeding) return BabyGuardPhase.BREEDING_WARNING;
+        if ((current == BabyGuardPhase.EGG_WARNING || current == BabyGuardPhase.BREEDING_WARNING) && partyFull)
+            return BabyGuardPhase.PARTY_FULL_WARNING;
+        return null;
+    }
+
+    private String guardMessage(BabyGuardPhase phase, String clickName) {
+        return switch (phase) {
+            case BREEDING_WARNING -> "\u00A7eThese parents are breeding. If you're sure, "
+                    + clickName + " again to confirm.";
+            case PARTY_FULL_WARNING -> "\u00A7eYour party is full and the parent will be sent to your PC. "
+                    + "If you're sure, Right Click again to confirm.";
+            default -> "";
+        };
+    }
+
+    private void activateBabyGuard(String message, BabyGuardPhase phase, int confirmButton, int slotIndex) {
+        babyGuardMessage = message;
+        babyGuardPhase = phase;
+        babyGuardConfirmButton = confirmButton;
+        babyGuardSlotIndex = slotIndex;
+        babyGuardTicksLeft = BABY_GUARD_DURATION;
+
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null) {
+            mc.player.playSound(SoundEvents.NOTE_BLOCK_BASS.value(), 0.6f, 1.0f);
+        }
+    }
+
+    private void renderBabyGuardMessage(AbstractContainerScreen<?> containerScreen, GuiGraphics graphics,
+                                         float tickDelta) {
+        if (babyGuardMessage == null) return;
+
+        float effectiveTicks = babyGuardTicksLeft - tickDelta;
+        int alpha = effectiveTicks >= BABY_GUARD_FADE_TICKS ? 255
+                  : effectiveTicks <= 0 ? 0
+                  : (int) (effectiveTicks / BABY_GUARD_FADE_TICKS * 255);
+        if (alpha <= 0) return;
+
+        ContainerScreenAccessor accessor = (ContainerScreenAccessor) containerScreen;
+        Font font = Minecraft.getInstance().font;
+        int centerX = containerScreen.width / 2;
+        int textY = accessor.getTopPos() + accessor.getImageHeight() + 6;
+        int textWidth = font.width(babyGuardMessage);
+        graphics.drawString(font, babyGuardMessage, centerX - textWidth / 2, textY,
+                (alpha << 24) | 0xFFAA00, true);
+    }
+
+    private void clearBabyGuard() {
+        babyGuardPhase = BabyGuardPhase.NONE;
+        babyGuardMessage = null;
+        babyGuardConfirmButton = -1;
+        babyGuardTicksLeft = 0;
+        babyGuardSlotIndex = -1;
+    }
+
+    private boolean looksLikeDaycareScreen(AbstractContainerScreen<?> containerScreen) {
+        String title = containerScreen.getTitle().getString();
+        int titleNum = decodeTitleNumber(title);
+        if (titleNum >= 1 && titleNum <= 9) return true;
+        String clean = title.replaceAll("\u00A7[0-9a-fk-or]", "").trim();
+        if (clean.toUpperCase().contains("DAYCARE")) return true;
+        return detectDaycareByContent(containerScreen.getMenu());
+    }
+
+    private boolean isParentSlot(Slot slot) {
+        if (slot.getItem().isEmpty()) return false;
+        return BuiltInRegistries.ITEM.getKey(slot.getItem().getItem()).toString()
+                .equals("cobblemon:pokemon_model");
+    }
+
+    private boolean isBreedingActive(AbstractContainerMenu menu) {
+        for (Slot slot : menu.slots) {
+            if (slot.container instanceof net.minecraft.world.entity.player.Inventory) continue;
+            ItemStack stack = slot.getItem();
+            if (stack.isEmpty() || !stack.is(Items.PAPER)) continue;
+            if (!stack.getHoverName().getString().replaceAll("\u00A7[0-9a-fk-or]", "").trim().isEmpty()) continue;
+            var cmd = stack.get(DataComponents.CUSTOM_MODEL_DATA);
+            if (cmd != null) {
+                int value = cmd.value();
+                if ((value >= 9001 && value <= 9007) || (value >= 9009 && value <= 9015)) return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasUnclaimedEgg(AbstractContainerMenu menu) {
+        for (Slot slot : menu.slots) {
+            if (slot.container instanceof net.minecraft.world.entity.player.Inventory) continue;
+            ItemStack stack = slot.getItem();
+            if (stack.isEmpty()) continue;
+            if (BuiltInRegistries.ITEM.getKey(stack.getItem()).toString().startsWith("cobblemon:")) continue;
+
+            String itemName = stack.getHoverName().getString()
+                    .replaceAll("\u00A7[0-9a-fk-or]", "").trim();
+            if (itemName.equalsIgnoreCase("New Egg") || itemName.equalsIgnoreCase("Egg")) return true;
+
+            ItemLore lore = stack.get(DataComponents.LORE);
+            if (lore != null) {
+                for (Component line : lore.lines()) {
+                    if (line.getString().toLowerCase().contains("claim egg")) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean isPartyFull() {
+        try {
+            ClientParty party = CobblemonClient.INSTANCE.getStorage().getParty();
+            if (party == null) return false;
+            int occupied = 0;
+            for (int i = 0; i < 6; i++) {
+                if (party.get(i) != null) occupied++;
+            }
+            return occupied >= 6;
+        } catch (Exception e) {
+            SigsAcademyAddons.LOGGER.warn("[SAA BabyGuard] Error checking party", e);
+            return false;
+        }
     }
 }

@@ -72,6 +72,8 @@ public class HudConfig {
     private int groupOffsetY = 5;
     private int groupRefScreenWidth = 0;
 
+    private boolean daycareBabyGuards = true;
+
     private boolean driflootAlertsEnabled = true;
 
     private boolean suppressInRaids = true;
@@ -433,6 +435,15 @@ public class HudConfig {
         };
     }
 
+    public boolean isDaycareBabyGuards() {
+        return daycareBabyGuards;
+    }
+
+    public void setDaycareBabyGuards(boolean daycareBabyGuards) {
+        this.daycareBabyGuards = daycareBabyGuards;
+        save();
+    }
+
     public boolean isDriflootAlertsEnabled() {
         return driflootAlertsEnabled;
     }
@@ -517,6 +528,7 @@ public class HudConfig {
                     joinedGroup.isEmpty() ? null : new ArrayList<>(joinedGroup),
                     groupScale, groupAnchor.name(), groupOffsetX, groupOffsetY,
                     groupRefScreenWidth,
+                    daycareBabyGuards,
                     driflootAlertsEnabled,
                     suppressInRaids, suppressInHideouts, suppressInDungeons,
                     suppressInBattles, hudHidden);
@@ -575,6 +587,8 @@ public class HudConfig {
                     this.groupOffsetY = data.groupOffsetY != null ? data.groupOffsetY : 5;
                     this.groupRefScreenWidth = data.groupRefScreenWidth != null ? data.groupRefScreenWidth : 0;
 
+                    this.daycareBabyGuards = data.daycareBabyGuards != null ? data.daycareBabyGuards : true;
+
                     this.driflootAlertsEnabled = data.driflootAlertsEnabled != null ? data.driflootAlertsEnabled : true;
 
                     this.suppressInRaids = data.suppressInRaids != null ? data.suppressInRaids : true;
@@ -607,6 +621,7 @@ public class HudConfig {
             Integer refScreenWidth, Integer daycareRefScreenWidth, Integer wtRefScreenWidth,
             List<String> joinedGroup, Float groupScale, String groupAnchor,
             Integer groupOffsetX, Integer groupOffsetY, Integer groupRefScreenWidth,
+            Boolean daycareBabyGuards,
             Boolean driflootAlertsEnabled,
             Boolean suppressInRaids, Boolean suppressInHideouts, Boolean suppressInDungeons,
             Boolean suppressInBattles, Boolean hudHidden) {

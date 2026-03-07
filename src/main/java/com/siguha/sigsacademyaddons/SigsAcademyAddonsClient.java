@@ -500,6 +500,26 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             return 1;
                                         })
                                 )
+                                .then(ClientCommandManager.literal("daycareBabyGuards")
+                                        .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                                .executes(context -> {
+                                                    boolean value = BoolArgumentType.getBool(context, "value");
+                                                    hudConfig.setDaycareBabyGuards(value);
+                                                    String msg = value
+                                                            ? "\u00A7aDaycare baby guards enabled."
+                                                            : "\u00A7aDaycare baby guards disabled.";
+                                                    context.getSource().sendFeedback(Component.literal(msg));
+                                                    return 1;
+                                                })
+                                        )
+                                        .executes(context -> {
+                                            boolean current = hudConfig.isDaycareBabyGuards();
+                                            context.getSource().sendFeedback(Component.literal(
+                                                    "\u00A77daycareBabyGuards = \u00A7f" + current +
+                                                    "\n\u00A77Usage: \u00A7e/saa config daycareBabyGuards <true|false>"));
+                                            return 1;
+                                        })
+                                )
                                 .then(ClientCommandManager.literal("wtMenuEnabled")
                                         .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
                                                 .executes(context -> {
@@ -739,6 +759,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             "\n\u00A77daycareMenuEnabled = \u00A7f" + hudConfig.isDaycareMenuEnabled() +
                                             "\n\u00A77daycareSoundsEnabled = \u00A7f" + hudConfig.isDaycareSoundsEnabled() +
                                             "\n\u00A77daycareEggsHatchingSlots = \u00A7f" + hudConfig.getDaycareEggsHatchingSlots() +
+                                            "\n\u00A77daycareBabyGuards = \u00A7f" + hudConfig.isDaycareBabyGuards() +
                                             "\n\u00A77wtMenuEnabled = \u00A7f" + hudConfig.isWtMenuEnabled() +
                                             "\n\u00A77wtShowChatReminders = \u00A7f" + hudConfig.isWtShowChatReminders() +
                                             "\n\u00A77wtSoundsEnabled = \u00A7f" + hudConfig.isWtSoundsEnabled() +
@@ -877,6 +898,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                     "\u00A7e/saa config daycareMenuEnabled <bool>\u00A77 — Daycare HUD toggle\n" +
                                     "\u00A7e/saa config daycareSoundsEnabled <bool>\u00A77 — Daycare sound alerts toggle\n" +
                                     "\u00A7e/saa config daycareEggsHatchingSlots <0-5>\u00A77 — Max eggs shown (0=hide)\n" +
+                                    "\u00A7e/saa config daycareBabyGuards <bool>\u00A77 — Confirm before removing parents\n" +
                                     "\u00A7e/saa config wtMenuEnabled <bool>\u00A77 — Wondertrade HUD toggle\n" +
                                     "\u00A7e/saa config wtShowChatReminders <bool>\u00A77 — WT chat reminder toggle\n" +
                                     "\u00A7e/saa config wtSoundsEnabled <bool>\u00A77 — WT sound alerts toggle\n" +

@@ -27,6 +27,7 @@ import com.siguha.sigsacademyaddons.handler.DumpSelfCommand;
 import com.siguha.sigsacademyaddons.handler.NearbyDumpCommand;
 import com.siguha.sigsacademyaddons.handler.ParticleCapture;
 import com.siguha.sigsacademyaddons.handler.ScreenInterceptor;
+import com.siguha.sigsacademyaddons.handler.UpdateChecker;
 import com.siguha.sigsacademyaddons.hud.DaycareHudRenderer;
 import com.siguha.sigsacademyaddons.hud.HudGroupRenderer;
 import com.siguha.sigsacademyaddons.hud.PortalBossBarRenderer;
@@ -41,8 +42,12 @@ import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandBuildContext;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
 import org.lwjgl.glfw.GLFW;
 import java.util.Collections;
 import org.lwjgl.glfw.GLFWErrorCallback;
@@ -66,6 +71,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
 
     private static boolean openConfigScreenNextTick = false;
     private static boolean glfwFilterReinstalled = false;
+    private static int welcomeDelayTicks = -1;
 
     @Override
     public void onInitializeClient() {
@@ -126,6 +132,17 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                 installGlfwErrorFilter();
             }
 
+            if (welcomeDelayTicks > 0) {
+                welcomeDelayTicks--;
+            } else if (welcomeDelayTicks == 0 && client.player != null) {
+                welcomeDelayTicks = -1;
+                if (!hudConfig.hasSeenWelcome()) {
+                    client.player.sendSystemMessage(buildWelcomeMessage());
+                    hudConfig.setHasSeenWelcome(true);
+                }
+                UpdateChecker.checkForUpdatesAsync();
+            }
+
             if (openConfigScreenNextTick && client.player != null) {
                 openConfigScreenNextTick = false;
                 client.setScreen(new HudConfigScreen(hudConfig, safariManager, safariHuntManager,
@@ -143,11 +160,14 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             daycareManager.onServerJoined();
             wondertradeManager.onServerJoined();
+            welcomeDelayTicks = 60;
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             daycareManager.onServerDisconnected();
             wondertradeManager.onServerDisconnected();
             portalManager.clear();
+            welcomeDelayTicks = -1;
+            UpdateChecker.resetForNewSession();
         });
 
         ClientCommandRegistrationCallback.EVENT.register(SigsAcademyAddonsClient::registerCommands);
@@ -174,6 +194,44 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
         } catch (Exception e) {
             SigsAcademyAddons.LOGGER.warn("[SAA] Failed to install GLFW error filter", e);
         }
+    }
+
+    private static Component buildWelcomeMessage() {
+        MutableComponent msg = Component.empty();
+
+        msg.append(Component.literal("Thanks for using SAA!")
+                .withStyle(ChatFormatting.AQUA));
+
+        msg.append(Component.literal("\n\nThis mod requires some data be scraped initially for setup -- this includes things like the Daycare, WT, Safari, etc. If you want everything to work properly, please open these menus to initialize the mod.")
+                .withStyle(ChatFormatting.AQUA));
+
+        msg.append(Component.literal("\n\nDon't like the placement, style, or size of some of the menus? Want to disable some features? SAA is incredibly configurable!")
+                .withStyle(ChatFormatting.AQUA));
+
+        msg.append(Component.literal("\n* Use ")
+                .withStyle(ChatFormatting.AQUA));
+        msg.append(Component.literal("/saa gui")
+                .withStyle(Style.EMPTY
+                        .withColor(ChatFormatting.GOLD)
+                        .withUnderlined(true)
+                        .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/saa gui"))));
+        msg.append(Component.literal(" to edit your menus")
+                .withStyle(ChatFormatting.AQUA));
+
+        msg.append(Component.literal("\n* Use ")
+                .withStyle(ChatFormatting.AQUA));
+        msg.append(Component.literal("/saa config")
+                .withStyle(Style.EMPTY
+                        .withColor(ChatFormatting.GOLD)
+                        .withUnderlined(true)
+                        .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/saa config"))));
+        msg.append(Component.literal(" to explore our config options!")
+                .withStyle(ChatFormatting.AQUA));
+
+        msg.append(Component.literal("\n\nWe hope you enjoy!")
+                .withStyle(ChatFormatting.AQUA));
+
+        return msg;
     }
 
     private static void registerCommands(CommandDispatcher<FabricClientCommandSource> dispatcher,
@@ -268,6 +326,30 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                                 })
                                         )
                                 )
+                                .then(ClientCommandManager.literal("ivPercentPreference")
+                                        .then(ClientCommandManager.argument("lowerBound", IntegerArgumentType.integer(0, 100))
+                                                .then(ClientCommandManager.argument("upperBound", IntegerArgumentType.integer(0, 100))
+                                                        .executes(context -> {
+                                                            int lower = IntegerArgumentType.getInteger(context, "lowerBound");
+                                                            int upper = IntegerArgumentType.getInteger(context, "upperBound");
+                                                            hudConfig.setDaycareIvPercentLower(lower);
+                                                            hudConfig.setDaycareIvPercentUpper(upper);
+                                                            context.getSource().sendFeedback(Component.literal(
+                                                                    "\u00A7aIV% thresholds set to \u00A76" + lower
+                                                                    + "%\u00A7a (orange) / \u00A7b" + upper + "%\u00A7a (blue)."));
+                                                            return 1;
+                                                        })
+                                                )
+                                        )
+                                        .executes(context -> {
+                                            context.getSource().sendFeedback(Component.literal(
+                                                    "\u00A77IV% highlight thresholds:" +
+                                                    "\n\u00A76  Orange: \u00A7f" + hudConfig.getDaycareIvPercentLower() + "%+" +
+                                                    "\n\u00A7b  Blue: \u00A7f" + hudConfig.getDaycareIvPercentUpper() + "%+" +
+                                                    "\n\u00A77Usage: \u00A7e/saa daycare ivPercentPreference <lower> <upper>"));
+                                            return 1;
+                                        })
+                                )
                                 .executes(context -> {
                                     int unlockedPens = daycareManager.getDisplayPens().size();
                                     long breedingPens = daycareManager.getDisplayPens().stream()
@@ -284,6 +366,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                     sb.append("\n\u00A77Menu enabled: \u00A7f").append(hudConfig.isDaycareMenuEnabled());
                                     sb.append("\n\u00A77Sounds enabled: \u00A7f").append(hudConfig.isDaycareSoundsEnabled());
                                     sb.append("\n\u00A77Daycare scale: \u00A7f").append(String.format("%.0f%%", hudConfig.getDaycareScale() * 100));
+                                    sb.append("\n\u00A77IV% highlight: \u00A76").append(hudConfig.getDaycareIvPercentLower()).append("%+\u00A77 (orange) / \u00A7b").append(hudConfig.getDaycareIvPercentUpper()).append("%+\u00A77 (blue)");
 
                                     context.getSource().sendFeedback(Component.literal(sb.toString()));
                                     return 1;
@@ -501,6 +584,26 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                                     "\u00A77daycareEggsHatchingSlots = \u00A7f" + current +
                                                     "\n\u00A77Usage: \u00A7e/saa config daycareEggsHatchingSlots <0-5>" +
                                                     "\n\u00A77Set to 0 to hide hatching section."));
+                                            return 1;
+                                        })
+                                )
+                                .then(ClientCommandManager.literal("daycareBabyGuards")
+                                        .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                                .executes(context -> {
+                                                    boolean value = BoolArgumentType.getBool(context, "value");
+                                                    hudConfig.setDaycareBabyGuards(value);
+                                                    String msg = value
+                                                            ? "\u00A7aDaycare baby guards enabled."
+                                                            : "\u00A7aDaycare baby guards disabled.";
+                                                    context.getSource().sendFeedback(Component.literal(msg));
+                                                    return 1;
+                                                })
+                                        )
+                                        .executes(context -> {
+                                            boolean current = hudConfig.isDaycareBabyGuards();
+                                            context.getSource().sendFeedback(Component.literal(
+                                                    "\u00A77daycareBabyGuards = \u00A7f" + current +
+                                                    "\n\u00A77Usage: \u00A7e/saa config daycareBabyGuards <true|false>"));
                                             return 1;
                                         })
                                 )
@@ -763,6 +866,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             "\n\u00A77daycareMenuEnabled = \u00A7f" + hudConfig.isDaycareMenuEnabled() +
                                             "\n\u00A77daycareSoundsEnabled = \u00A7f" + hudConfig.isDaycareSoundsEnabled() +
                                             "\n\u00A77daycareEggsHatchingSlots = \u00A7f" + hudConfig.getDaycareEggsHatchingSlots() +
+                                            "\n\u00A77daycareBabyGuards = \u00A7f" + hudConfig.isDaycareBabyGuards() +
                                             "\n\u00A77wtMenuEnabled = \u00A7f" + hudConfig.isWtMenuEnabled() +
                                             "\n\u00A77wtShowChatReminders = \u00A7f" + hudConfig.isWtShowChatReminders() +
                                             "\n\u00A77wtSoundsEnabled = \u00A7f" + hudConfig.isWtSoundsEnabled() +
@@ -902,6 +1006,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                     "\u00A7e/saa config daycareMenuEnabled <bool>\u00A77 — Daycare HUD toggle\n" +
                                     "\u00A7e/saa config daycareSoundsEnabled <bool>\u00A77 — Daycare sound alerts toggle\n" +
                                     "\u00A7e/saa config daycareEggsHatchingSlots <0-5>\u00A77 — Max eggs shown (0=hide)\n" +
+                                    "\u00A7e/saa config daycareBabyGuards <bool>\u00A77 — Confirm before removing parents\n" +
                                     "\u00A7e/saa config wtMenuEnabled <bool>\u00A77 — Wondertrade HUD toggle\n" +
                                     "\u00A7e/saa config wtShowChatReminders <bool>\u00A77 — WT chat reminder toggle\n" +
                                     "\u00A7e/saa config wtSoundsEnabled <bool>\u00A77 — WT sound alerts toggle\n" +

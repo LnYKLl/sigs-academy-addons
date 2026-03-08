@@ -32,6 +32,9 @@ import com.siguha.sigsacademyaddons.feature.daycare.ParentIvData;
 import com.siguha.sigsacademyaddons.feature.daycare.ParentIvOverlayRenderer;
 import com.siguha.sigsacademyaddons.feature.daycare.ParentIvParser;
 
+import com.cobblemon.mod.common.CobblemonItemComponents;
+import com.cobblemon.mod.common.item.components.PokemonItemComponent;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -502,6 +505,8 @@ public class ScreenInterceptor {
     private void scrapePenView(AbstractContainerMenu menu) {
         String pokemon1 = null;
         String pokemon2 = null;
+        boolean gender1Female = false;
+        boolean gender2Female = false;
         ParentIvData ivData1 = null;
         ParentIvData ivData2 = null;
         boolean hasEgg = false;
@@ -519,23 +524,47 @@ public class ScreenInterceptor {
 
             if (itemId.equals("cobblemon:pokemon_model")) {
                 try {
-                    Component customName = stack.get(DataComponents.CUSTOM_NAME);
-                    if (customName != null) {
-                        String rawName = customName.getString()
-                                .replaceAll("\u00A7[0-9a-fk-or]", "").trim();
-                        String cleanName = cleanPokemonName(rawName);
-                        if (cleanName != null) {
-                            if (pokemon1 == null) {
-                                pokemon1 = cleanName;
-                                ivData1 = ParentIvParser.parse(stack, cleanName);
-                            } else if (pokemon2 == null) {
-                                pokemon2 = cleanName;
-                                ivData2 = ParentIvParser.parse(stack, cleanName);
+                    String resolvedName = null;
+                    boolean isFemale = false;
+
+                    PokemonItemComponent pokemonComp = stack.get(
+                            CobblemonItemComponents.POKEMON_ITEM);
+                    if (pokemonComp != null) {
+                        var speciesId = pokemonComp.getSpecies();
+                        if (speciesId != null) {
+                            String path = speciesId.getPath();
+                            if (!path.isEmpty()) {
+                                resolvedName = path.substring(0, 1).toUpperCase() + path.substring(1);
                             }
+                        }
+                        var aspects = pokemonComp.getAspects();
+                        if (aspects != null) {
+                            isFemale = aspects.contains("female");
+                        }
+                    }
+
+                    if (resolvedName == null) {
+                        Component customName = stack.get(DataComponents.CUSTOM_NAME);
+                        if (customName != null) {
+                            String rawName = customName.getString()
+                                    .replaceAll("\u00A7[0-9a-fk-or]", "").trim();
+                            resolvedName = cleanPokemonName(rawName);
+                        }
+                    }
+
+                    if (resolvedName != null) {
+                        if (pokemon1 == null) {
+                            pokemon1 = resolvedName;
+                            gender1Female = isFemale;
+                            ivData1 = ParentIvParser.parse(stack, resolvedName);
+                        } else if (pokemon2 == null) {
+                            pokemon2 = resolvedName;
+                            gender2Female = isFemale;
+                            ivData2 = ParentIvParser.parse(stack, resolvedName);
                         }
                     }
                 } catch (Exception e) {
-                    SigsAcademyAddons.LOGGER.warn("[SAA Daycare] Error reading pokemon_model name", e);
+                    SigsAcademyAddons.LOGGER.warn("[SAA Daycare] Error reading pokemon_model data", e);
                 }
                 continue;
             }
@@ -617,7 +646,8 @@ public class ScreenInterceptor {
         ivOverlayRenderer.setData(ivData1, ivData2);
 
         daycareManager.onPenViewScraped(
-                new DaycareManager.ScrapedPenData(penNumber, pokemon1, pokemon2, stage,
+                new DaycareManager.ScrapedPenData(penNumber, pokemon1, pokemon2,
+                        gender1Female, gender2Female, stage,
                         hasEgg, cursorHasEgg, serverBreedingProgress));
     }
 

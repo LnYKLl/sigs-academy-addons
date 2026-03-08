@@ -28,6 +28,10 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.sounds.SoundEvents;
 
+import com.siguha.sigsacademyaddons.feature.daycare.ParentIvData;
+import com.siguha.sigsacademyaddons.feature.daycare.ParentIvOverlayRenderer;
+import com.siguha.sigsacademyaddons.feature.daycare.ParentIvParser;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -61,6 +65,8 @@ public class ScreenInterceptor {
 
     private static final int BABY_GUARD_DURATION = 100;
     private static final int BABY_GUARD_FADE_TICKS = 20;
+
+    private final ParentIvOverlayRenderer ivOverlayRenderer = new ParentIvOverlayRenderer();
 
     private enum BabyGuardPhase { NONE, EGG_WARNING, BREEDING_WARNING, PARTY_FULL_WARNING }
     private BabyGuardPhase babyGuardPhase = BabyGuardPhase.NONE;
@@ -111,6 +117,7 @@ public class ScreenInterceptor {
         backpackTabActive = false;
         isWtScreen = false;
         clearBabyGuard();
+        ivOverlayRenderer.clear();
 
         ScreenEvents.remove(screen).register(removedScreen -> {
             if (isWtScreen) {
@@ -129,8 +136,12 @@ public class ScreenInterceptor {
             }
         });
 
-        ScreenEvents.afterRender(screen).register((renderedScreen, graphics, mouseX, mouseY, tickDelta) ->
-                renderBabyGuardMessage(containerScreen, graphics, tickDelta));
+        ScreenEvents.afterRender(screen).register((renderedScreen, graphics, mouseX, mouseY, tickDelta) -> {
+            renderBabyGuardMessage(containerScreen, graphics, tickDelta);
+            if (isDaycareScreen) {
+                ivOverlayRenderer.render(containerScreen, graphics);
+            }
+        });
 
         ScreenEvents.afterTick(screen).register(tickedScreen -> {
             ticksWaited++;
@@ -163,6 +174,7 @@ public class ScreenInterceptor {
                 }
 
                 if (isDaycareScreen) {
+                    ivOverlayRenderer.setProcessing();
                     daycareManager.onDaycareMenuOpened();
                     scrapeDaycareView(containerScreen);
                 }
@@ -320,8 +332,11 @@ public class ScreenInterceptor {
 
             switch (view) {
                 case PEN_VIEW -> scrapePenView(menu);
-                case EGG_BACKPACK -> {}
-                case UNKNOWN -> SigsAcademyAddons.LOGGER.debug("[SAA Daycare] Could not determine daycare view");
+                case EGG_BACKPACK -> ivOverlayRenderer.clear();
+                case UNKNOWN -> {
+                    ivOverlayRenderer.clear();
+                    SigsAcademyAddons.LOGGER.debug("[SAA Daycare] Could not determine daycare view");
+                }
             }
         } catch (Exception e) {
             SigsAcademyAddons.LOGGER.error("[SAA Daycare] Error during daycare scrape", e);
@@ -467,6 +482,8 @@ public class ScreenInterceptor {
     private void scrapePenView(AbstractContainerMenu menu) {
         String pokemon1 = null;
         String pokemon2 = null;
+        ParentIvData ivData1 = null;
+        ParentIvData ivData2 = null;
         boolean hasEgg = false;
         boolean hasWarning = false;
         int leftArrowStage = -1;
@@ -490,9 +507,10 @@ public class ScreenInterceptor {
                         if (cleanName != null) {
                             if (pokemon1 == null) {
                                 pokemon1 = cleanName;
-
+                                ivData1 = ParentIvParser.parse(stack, cleanName);
                             } else if (pokemon2 == null) {
                                 pokemon2 = cleanName;
+                                ivData2 = ParentIvParser.parse(stack, cleanName);
                             }
                         }
                     }
@@ -575,6 +593,8 @@ public class ScreenInterceptor {
         if (leftArrowStage >= 0 && rightArrowStage >= 0) {
             serverBreedingProgress = (leftArrowStage + rightArrowStage) / 14.0f;
         }
+
+        ivOverlayRenderer.setData(ivData1, ivData2);
 
         daycareManager.onPenViewScraped(
                 new DaycareManager.ScrapedPenData(penNumber, pokemon1, pokemon2, stage,

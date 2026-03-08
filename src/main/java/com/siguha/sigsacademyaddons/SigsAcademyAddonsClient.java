@@ -11,6 +11,7 @@ import com.siguha.sigsacademyaddons.data.WondertradeDataStore;
 import com.siguha.sigsacademyaddons.feature.daycare.DaycareManager;
 import com.siguha.sigsacademyaddons.feature.daycare.DaycareSoundPlayer;
 import com.siguha.sigsacademyaddons.feature.drifloot.DriflootDetector;
+import com.siguha.sigsacademyaddons.feature.hideout.GruntFinderTracker;
 import com.siguha.sigsacademyaddons.feature.portal.PortalManager;
 import com.siguha.sigsacademyaddons.feature.portal.PortalParticleDetector;
 import com.siguha.sigsacademyaddons.feature.suppression.SuppressionManager;
@@ -59,6 +60,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
     private static WondertradeSoundPlayer wondertradeSoundPlayer;
     private static PortalManager portalManager;
     private static DriflootDetector driflootDetector;
+    private static GruntFinderTracker gruntFinderTracker;
     private static SuppressionManager suppressionManager;
     private static HudConfig hudConfig;
 
@@ -87,6 +89,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
 
         portalManager = new PortalManager();
         driflootDetector = new DriflootDetector(hudConfig);
+        gruntFinderTracker = new GruntFinderTracker(hudConfig);
         suppressionManager = new SuppressionManager(hudConfig);
 
         ChatMessageHandler chatHandler = new ChatMessageHandler(safariManager, safariHuntManager,
@@ -114,6 +117,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
             wondertradeSoundPlayer.tick();
             portalManager.tick();
             driflootDetector.tick();
+            gruntFinderTracker.tick();
             PortalParticleDetector.tick();
             ParticleCapture.tick();
 
@@ -710,6 +714,26 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             return 1;
                                         })
                                 )
+                                .then(ClientCommandManager.literal("gruntFinder")
+                                        .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                                .executes(context -> {
+                                                    boolean value = BoolArgumentType.getBool(context, "value");
+                                                    hudConfig.setGruntFinderEnabled(value);
+                                                    String msg = value
+                                                            ? "\u00A7aGrunt finder enabled."
+                                                            : "\u00A7aGrunt finder disabled.";
+                                                    context.getSource().sendFeedback(Component.literal(msg));
+                                                    return 1;
+                                                })
+                                        )
+                                        .executes(context -> {
+                                            boolean current = hudConfig.isGruntFinderEnabled();
+                                            context.getSource().sendFeedback(Component.literal(
+                                                    "\u00A77gruntFinder = \u00A7f" + current +
+                                                    "\n\u00A77Usage: \u00A7e/saa config gruntFinder <true|false>"));
+                                            return 1;
+                                        })
+                                )
                                 .then(ClientCommandManager.literal("hudHidden")
                                         .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
                                                 .executes(context -> {
@@ -752,6 +776,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             "\n\u00A77suppressInDungeons = \u00A7f" + hudConfig.isSuppressInDungeons() +
                                             "\n\u00A77suppressInBattles = \u00A7f" + hudConfig.isSuppressInBattles() +
                                             "\n\u00A77driflootAlerts = \u00A7f" + hudConfig.isDriflootAlertsEnabled() +
+                                            "\n\u00A77gruntFinder = \u00A7f" + hudConfig.isGruntFinderEnabled() +
                                             "\n\u00A77hudHidden = \u00A7f" + hudConfig.isHudHidden()
                                     ));
                                     return 1;
@@ -901,5 +926,6 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
     public static DaycareManager getDaycareManager() { return daycareManager; }
     public static WondertradeManager getWondertradeManager() { return wondertradeManager; }
     public static PortalManager getPortalManager() { return portalManager; }
+    public static GruntFinderTracker getGruntFinderTracker() { return gruntFinderTracker; }
     public static HudConfig getHudConfig() { return hudConfig; }
 }

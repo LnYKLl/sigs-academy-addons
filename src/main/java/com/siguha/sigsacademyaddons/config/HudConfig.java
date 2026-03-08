@@ -73,6 +73,7 @@ public class HudConfig {
     private int groupRefScreenWidth = 0;
 
     private boolean driflootAlertsEnabled = true;
+    private boolean gruntFinderEnabled = true;
 
     private boolean suppressInRaids = true;
     private boolean suppressInHideouts = false;
@@ -442,6 +443,15 @@ public class HudConfig {
         save();
     }
 
+    public boolean isGruntFinderEnabled() {
+        return gruntFinderEnabled;
+    }
+
+    public void setGruntFinderEnabled(boolean gruntFinderEnabled) {
+        this.gruntFinderEnabled = gruntFinderEnabled;
+        save();
+    }
+
     public boolean isSuppressInRaids() { return suppressInRaids; }
 
     public void setSuppressInRaids(boolean suppressInRaids) {
@@ -518,6 +528,7 @@ public class HudConfig {
                     groupScale, groupAnchor.name(), groupOffsetX, groupOffsetY,
                     groupRefScreenWidth,
                     driflootAlertsEnabled,
+                    gruntFinderEnabled,
                     suppressInRaids, suppressInHideouts, suppressInDungeons,
                     suppressInBattles, hudHidden);
             try (Writer writer = Files.newBufferedWriter(filePath)) {
@@ -576,6 +587,7 @@ public class HudConfig {
                     this.groupRefScreenWidth = data.groupRefScreenWidth != null ? data.groupRefScreenWidth : 0;
 
                     this.driflootAlertsEnabled = data.driflootAlertsEnabled != null ? data.driflootAlertsEnabled : true;
+                    this.gruntFinderEnabled = data.gruntFinderEnabled != null ? data.gruntFinderEnabled : true;
 
                     this.suppressInRaids = data.suppressInRaids != null ? data.suppressInRaids : true;
                     this.suppressInHideouts = data.suppressInHideouts != null ? data.suppressInHideouts : false;
@@ -608,6 +620,7 @@ public class HudConfig {
             List<String> joinedGroup, Float groupScale, String groupAnchor,
             Integer groupOffsetX, Integer groupOffsetY, Integer groupRefScreenWidth,
             Boolean driflootAlertsEnabled,
+            Boolean gruntFinderEnabled,
             Boolean suppressInRaids, Boolean suppressInHideouts, Boolean suppressInDungeons,
             Boolean suppressInBattles, Boolean hudHidden) {
     }

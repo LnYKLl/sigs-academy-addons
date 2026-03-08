@@ -67,6 +67,9 @@ public class ScreenInterceptor {
     private static final int BABY_GUARD_FADE_TICKS = 20;
 
     private final ParentIvOverlayRenderer ivOverlayRenderer = new ParentIvOverlayRenderer();
+    private final Set<Integer> backpackHighlightSlotsUpper = new LinkedHashSet<>();
+    private final Set<Integer> backpackHighlightSlotsLower = new LinkedHashSet<>();
+    private boolean backpackViewActive = false;
 
     private enum BabyGuardPhase { NONE, EGG_WARNING, BREEDING_WARNING, PARTY_FULL_WARNING }
     private BabyGuardPhase babyGuardPhase = BabyGuardPhase.NONE;
@@ -118,6 +121,9 @@ public class ScreenInterceptor {
         isWtScreen = false;
         clearBabyGuard();
         ivOverlayRenderer.clear();
+        backpackHighlightSlotsUpper.clear();
+        backpackHighlightSlotsLower.clear();
+        backpackViewActive = false;
 
         ScreenEvents.remove(screen).register(removedScreen -> {
             if (isWtScreen) {
@@ -140,6 +146,8 @@ public class ScreenInterceptor {
             renderBabyGuardMessage(containerScreen, graphics, tickDelta);
             if (isDaycareScreen) {
                 ivOverlayRenderer.render(containerScreen, graphics);
+                renderBackpackHighlights(containerScreen, graphics);
+                renderBackpackFilterLabel(containerScreen, graphics);
             }
         });
 
@@ -331,10 +339,22 @@ public class ScreenInterceptor {
             DaycareView view = detectDaycareView(menu);
 
             switch (view) {
-                case PEN_VIEW -> scrapePenView(menu);
-                case EGG_BACKPACK -> ivOverlayRenderer.clear();
-                case UNKNOWN -> {
+                case PEN_VIEW -> {
+                    backpackViewActive = false;
+                    backpackHighlightSlotsUpper.clear();
+                    backpackHighlightSlotsLower.clear();
+                    scrapePenView(menu);
+                }
+                case EGG_BACKPACK -> {
+                    backpackViewActive = true;
                     ivOverlayRenderer.clear();
+                    scanBackpackIvSlots(menu);
+                }
+                case UNKNOWN -> {
+                    backpackViewActive = false;
+                    ivOverlayRenderer.clear();
+                    backpackHighlightSlotsUpper.clear();
+                    backpackHighlightSlotsLower.clear();
                     SigsAcademyAddons.LOGGER.debug("[SAA Daycare] Could not determine daycare view");
                 }
             }
@@ -612,6 +632,92 @@ public class ScreenInterceptor {
         rawName = rawName.replaceAll("[^\\x00-\\x7F]", "").trim();
 
         return rawName.isEmpty() ? null : rawName;
+    }
+
+    private void scanBackpackIvSlots(AbstractContainerMenu menu) {
+        backpackHighlightSlotsUpper.clear();
+        backpackHighlightSlotsLower.clear();
+
+        HudConfig config = SigsAcademyAddonsClient.getHudConfig();
+        if (config == null) return;
+        int lower = config.getDaycareIvPercentLower();
+        int upper = config.getDaycareIvPercentUpper();
+
+        for (Slot slot : menu.slots) {
+            if (slot.container instanceof net.minecraft.world.entity.player.Inventory) continue;
+
+            ItemStack stack = slot.getItem();
+            if (stack.isEmpty()) continue;
+
+            String name = "Egg";
+            Component customName = stack.get(DataComponents.CUSTOM_NAME);
+            if (customName != null) {
+                String raw = customName.getString()
+                        .replaceAll("\u00A7[0-9a-fk-or]", "").trim();
+                String cleaned = cleanPokemonName(raw);
+                if (cleaned != null) name = cleaned;
+            }
+
+            ParentIvData ivData = ParentIvParser.parse(stack, name);
+            if (ivData != null) {
+                int pct = ivData.getIvPercent();
+                if (pct >= upper) {
+                    backpackHighlightSlotsUpper.add(slot.index);
+                } else if (pct >= lower) {
+                    backpackHighlightSlotsLower.add(slot.index);
+                }
+            }
+        }
+    }
+
+    private void renderBackpackFilterLabel(AbstractContainerScreen<?> containerScreen, GuiGraphics graphics) {
+        if (!backpackViewActive) return;
+
+        HudConfig config = SigsAcademyAddonsClient.getHudConfig();
+        if (config == null) return;
+
+        ContainerScreenAccessor accessor = (ContainerScreenAccessor) containerScreen;
+        Font font = Minecraft.getInstance().font;
+
+        String label = "Filtering for " + config.getDaycareIvPercentLower() + "%+ IVs";
+        int textWidth = font.width(label);
+        int containerRight = accessor.getLeftPos() + accessor.getImageWidth();
+
+        float scale = 0.7f;
+        int scaledWidth = (int)(textWidth * scale);
+        int x = containerRight - scaledWidth - 8;
+        int y = accessor.getTopPos() + (int)(accessor.getImageHeight() * 0.20) + 1;
+
+        graphics.pose().pushPose();
+        graphics.pose().translate(x, y, 0);
+        graphics.pose().scale(scale, scale, 1.0f);
+        graphics.drawString(font, label, 0, 0, 0xFFD8D8D8, false);
+        graphics.pose().popPose();
+    }
+
+    private static final int COLOR_HIGHLIGHT_UPPER = 0x44AA00FF;
+    private static final int COLOR_HIGHLIGHT_LOWER = 0x66FFD700;
+
+    private void renderBackpackHighlights(AbstractContainerScreen<?> containerScreen, GuiGraphics graphics) {
+        if (backpackHighlightSlotsUpper.isEmpty() && backpackHighlightSlotsLower.isEmpty()) return;
+
+        ContainerScreenAccessor accessor = (ContainerScreenAccessor) containerScreen;
+        int leftPos = accessor.getLeftPos();
+        int topPos = accessor.getTopPos();
+
+        for (Slot slot : containerScreen.getMenu().slots) {
+            int color;
+            if (backpackHighlightSlotsUpper.contains(slot.index)) {
+                color = COLOR_HIGHLIGHT_UPPER;
+            } else if (backpackHighlightSlotsLower.contains(slot.index)) {
+                color = COLOR_HIGHLIGHT_LOWER;
+            } else {
+                continue;
+            }
+            int x = leftPos + slot.x;
+            int y = topPos + slot.y;
+            graphics.fill(x, y, x + 16, y + 16, color);
+        }
     }
 
     private int computeSlotHash(AbstractContainerMenu menu) {

@@ -264,6 +264,30 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                                 })
                                         )
                                 )
+                                .then(ClientCommandManager.literal("ivPercentPreference")
+                                        .then(ClientCommandManager.argument("lowerBound", IntegerArgumentType.integer(0, 100))
+                                                .then(ClientCommandManager.argument("upperBound", IntegerArgumentType.integer(0, 100))
+                                                        .executes(context -> {
+                                                            int lower = IntegerArgumentType.getInteger(context, "lowerBound");
+                                                            int upper = IntegerArgumentType.getInteger(context, "upperBound");
+                                                            hudConfig.setDaycareIvPercentLower(lower);
+                                                            hudConfig.setDaycareIvPercentUpper(upper);
+                                                            context.getSource().sendFeedback(Component.literal(
+                                                                    "\u00A7aIV% thresholds set to \u00A76" + lower
+                                                                    + "%\u00A7a (orange) / \u00A7b" + upper + "%\u00A7a (blue)."));
+                                                            return 1;
+                                                        })
+                                                )
+                                        )
+                                        .executes(context -> {
+                                            context.getSource().sendFeedback(Component.literal(
+                                                    "\u00A77IV% highlight thresholds:" +
+                                                    "\n\u00A76  Orange: \u00A7f" + hudConfig.getDaycareIvPercentLower() + "%+" +
+                                                    "\n\u00A7b  Blue: \u00A7f" + hudConfig.getDaycareIvPercentUpper() + "%+" +
+                                                    "\n\u00A77Usage: \u00A7e/saa daycare ivPercentPreference <lower> <upper>"));
+                                            return 1;
+                                        })
+                                )
                                 .executes(context -> {
                                     int unlockedPens = daycareManager.getDisplayPens().size();
                                     long breedingPens = daycareManager.getDisplayPens().stream()
@@ -280,6 +304,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                     sb.append("\n\u00A77Menu enabled: \u00A7f").append(hudConfig.isDaycareMenuEnabled());
                                     sb.append("\n\u00A77Sounds enabled: \u00A7f").append(hudConfig.isDaycareSoundsEnabled());
                                     sb.append("\n\u00A77Daycare scale: \u00A7f").append(String.format("%.0f%%", hudConfig.getDaycareScale() * 100));
+                                    sb.append("\n\u00A77IV% highlight: \u00A76").append(hudConfig.getDaycareIvPercentLower()).append("%+\u00A77 (orange) / \u00A7b").append(hudConfig.getDaycareIvPercentUpper()).append("%+\u00A77 (blue)");
 
                                     context.getSource().sendFeedback(Component.literal(sb.toString()));
                                     return 1;

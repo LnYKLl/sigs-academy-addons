@@ -73,6 +73,8 @@ public class HudConfig {
     private int groupRefScreenWidth = 0;
 
     private boolean daycareBabyGuards = true;
+    private int daycareIvPercentLower = 60;
+    private int daycareIvPercentUpper = 80;
 
     private boolean driflootAlertsEnabled = true;
 
@@ -444,6 +446,24 @@ public class HudConfig {
         save();
     }
 
+    public int getDaycareIvPercentLower() {
+        return daycareIvPercentLower;
+    }
+
+    public void setDaycareIvPercentLower(int value) {
+        this.daycareIvPercentLower = Math.max(0, Math.min(100, value));
+        save();
+    }
+
+    public int getDaycareIvPercentUpper() {
+        return daycareIvPercentUpper;
+    }
+
+    public void setDaycareIvPercentUpper(int value) {
+        this.daycareIvPercentUpper = Math.max(0, Math.min(100, value));
+        save();
+    }
+
     public boolean isDriflootAlertsEnabled() {
         return driflootAlertsEnabled;
     }
@@ -531,7 +551,8 @@ public class HudConfig {
                     daycareBabyGuards,
                     driflootAlertsEnabled,
                     suppressInRaids, suppressInHideouts, suppressInDungeons,
-                    suppressInBattles, hudHidden);
+                    suppressInBattles, hudHidden,
+                    daycareIvPercentLower, daycareIvPercentUpper);
             try (Writer writer = Files.newBufferedWriter(filePath)) {
                 GSON.toJson(data, writer);
             }
@@ -596,6 +617,10 @@ public class HudConfig {
                     this.suppressInDungeons = data.suppressInDungeons != null ? data.suppressInDungeons : false;
                     this.suppressInBattles = data.suppressInBattles != null ? data.suppressInBattles : true;
                     this.hudHidden = data.hudHidden != null ? data.hudHidden : false;
+                    this.daycareIvPercentLower = data.daycareIvPercentLower != null
+                            ? Math.max(0, Math.min(100, data.daycareIvPercentLower)) : 60;
+                    this.daycareIvPercentUpper = data.daycareIvPercentUpper != null
+                            ? Math.max(0, Math.min(100, data.daycareIvPercentUpper)) : 80;
                 }
             }
         } catch (Exception e) {
@@ -624,6 +649,7 @@ public class HudConfig {
             Boolean daycareBabyGuards,
             Boolean driflootAlertsEnabled,
             Boolean suppressInRaids, Boolean suppressInHideouts, Boolean suppressInDungeons,
-            Boolean suppressInBattles, Boolean hudHidden) {
+            Boolean suppressInBattles, Boolean hudHidden,
+            Integer daycareIvPercentLower, Integer daycareIvPercentUpper) {
     }
 }

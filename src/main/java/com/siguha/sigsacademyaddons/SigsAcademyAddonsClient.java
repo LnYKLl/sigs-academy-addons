@@ -11,6 +11,8 @@ import com.siguha.sigsacademyaddons.data.WondertradeDataStore;
 import com.siguha.sigsacademyaddons.feature.daycare.DaycareManager;
 import com.siguha.sigsacademyaddons.feature.daycare.DaycareSoundPlayer;
 import com.siguha.sigsacademyaddons.feature.drifloot.DriflootDetector;
+import com.siguha.sigsacademyaddons.feature.dungeon.DungeonManager;
+import com.siguha.sigsacademyaddons.feature.hideout.GruntFinderTracker;
 import com.siguha.sigsacademyaddons.feature.portal.PortalManager;
 import com.siguha.sigsacademyaddons.feature.portal.PortalParticleDetector;
 import com.siguha.sigsacademyaddons.feature.suppression.SuppressionManager;
@@ -40,7 +42,9 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.network.chat.ClickEvent;
@@ -64,7 +68,9 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
     private static WondertradeSoundPlayer wondertradeSoundPlayer;
     private static PortalManager portalManager;
     private static DriflootDetector driflootDetector;
+    private static GruntFinderTracker gruntFinderTracker;
     private static SuppressionManager suppressionManager;
+    private static DungeonManager dungeonManager;
     private static HudConfig hudConfig;
 
     private static boolean openConfigScreenNextTick = false;
@@ -93,10 +99,13 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
 
         portalManager = new PortalManager();
         driflootDetector = new DriflootDetector(hudConfig);
+        gruntFinderTracker = new GruntFinderTracker(hudConfig);
         suppressionManager = new SuppressionManager(hudConfig);
 
+        dungeonManager = new DungeonManager();
+
         ChatMessageHandler chatHandler = new ChatMessageHandler(safariManager, safariHuntManager,
-                catchDetector, daycareManager, wondertradeManager, portalManager, hudConfig);
+                catchDetector, daycareManager, wondertradeManager, portalManager);
         ScreenInterceptor screenInterceptor = new ScreenInterceptor(safariHuntManager, daycareManager,
                 wondertradeManager);
         SafariHudRenderer hudRenderer = new SafariHudRenderer(safariManager, safariHuntManager, hudConfig);
@@ -120,6 +129,8 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
             wondertradeSoundPlayer.tick();
             portalManager.tick();
             driflootDetector.tick();
+            dungeonManager.tick();
+            gruntFinderTracker.tick();
             PortalParticleDetector.tick();
             ParticleCapture.tick();
 
@@ -152,6 +163,16 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
         groupRenderer.registerPanel(wtHudRenderer);
         HudRenderCallback.EVENT.register(groupRenderer::onHudRender);
         HudRenderCallback.EVENT.register(portalBossBarRenderer::onHudRender);
+
+        WorldRenderEvents.AFTER_TRANSLUCENT.register(
+                context -> dungeonManager.getWorldRenderer().onWorldRender(context));
+
+        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+            if (world.isClientSide() && dungeonManager.isInDungeon()) {
+                dungeonManager.markChestOpened(hitResult.getBlockPos());
+            }
+            return net.minecraft.world.InteractionResult.PASS;
+        });
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             daycareManager.onServerJoined();
@@ -369,16 +390,16 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                 })
                         )
                         .then(ClientCommandManager.literal("manualHatchMultiplier")
-                                .then(ClientCommandManager.argument("value", FloatArgumentType.floatArg(0f, 2.0f))
+                                .then(ClientCommandManager.argument("value", FloatArgumentType.floatArg(0f, 1.5f))
                                         .executes(context -> {
                                             float value = FloatArgumentType.getFloat(context, "value");
-                                            if (value != 0f && value != 2.0f) {
+                                            if (value != 0f && value != 1.5f) {
                                                 context.getSource().sendFeedback(
-                                                        Component.literal("\u00A7cInvalid value. Use 0 (auto-detect) or 2.0 (force 2.0x speed)."));
+                                                        Component.literal("\u00A7cInvalid value. Use 0 (auto-detect) or 1.5 (force 1.5x speed)."));
                                                 return 0;
                                             }
                                             hudConfig.setManualHatchMultiplier(value);
-                                            String label = value == 0f ? "\u00A7bauto-detect" : "\u00A7b2.0x";
+                                            String label = value == 0f ? "\u00A7bauto-detect" : "\u00A7b1.5x";
                                             context.getSource().sendFeedback(
                                                     Component.literal("\u00A7aHatch multiplier set to " + label + "\u00A7a. Takes effect on next server join."));
                                             return 1;
@@ -389,8 +410,8 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                     String label = current == 0f ? "auto-detect" : String.format("%.1fx", current);
                                     context.getSource().sendFeedback(Component.literal(
                                             "\u00A77manualHatchMultiplier = \u00A7f" + label +
-                                            "\n\u00A77Usage: \u00A7e/saa manualHatchMultiplier <0 | 2.0>" +
-                                            "\n\u00A770 = auto-detect from rank, 2.0 = force 2.0x hatch speed"));
+                                            "\n\u00A77Usage: \u00A7e/saa manualHatchMultiplier <0 | 1.5>" +
+                                            "\n\u00A770 = auto-detect from rank, 1.5 = force 1.5x hatch speed"));
                                     return 1;
                                 })
                         )
@@ -813,6 +834,26 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             return 1;
                                         })
                                 )
+                                .then(ClientCommandManager.literal("gruntFinder")
+                                        .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                                .executes(context -> {
+                                                    boolean value = BoolArgumentType.getBool(context, "value");
+                                                    hudConfig.setGruntFinderEnabled(value);
+                                                    String msg = value
+                                                            ? "\u00A7aGrunt finder enabled."
+                                                            : "\u00A7aGrunt finder disabled.";
+                                                    context.getSource().sendFeedback(Component.literal(msg));
+                                                    return 1;
+                                                })
+                                        )
+                                        .executes(context -> {
+                                            boolean current = hudConfig.isGruntFinderEnabled();
+                                            context.getSource().sendFeedback(Component.literal(
+                                                    "\u00A77gruntFinder = \u00A7f" + current +
+                                                    "\n\u00A77Usage: \u00A7e/saa config gruntFinder <true|false>"));
+                                            return 1;
+                                        })
+                                )
                                 .then(ClientCommandManager.literal("hudHidden")
                                         .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
                                                 .executes(context -> {
@@ -830,26 +871,6 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             context.getSource().sendFeedback(Component.literal(
                                                     "\u00A77hudHidden = \u00A7f" + current +
                                                     "\n\u00A77Usage: \u00A7e/saa config hudHidden <true|false>"));
-                                            return 1;
-                                        })
-                                )
-                                .then(ClientCommandManager.literal("autoAcceptPartyInvites")
-                                        .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
-                                                .executes(context -> {
-                                                    boolean value = BoolArgumentType.getBool(context, "value");
-                                                    hudConfig.setAutoAcceptPartyInvites(value);
-                                                    String msg = value
-                                                            ? "\u00A7aAuto-accept party invites enabled."
-                                                            : "\u00A7aAuto-accept party invites disabled.";
-                                                    context.getSource().sendFeedback(Component.literal(msg));
-                                                    return 1;
-                                                })
-                                        )
-                                        .executes(context -> {
-                                            boolean current = hudConfig.isAutoAcceptPartyInvites();
-                                            context.getSource().sendFeedback(Component.literal(
-                                                    "\u00A77autoAcceptPartyInvites = \u00A7f" + current +
-                                                    "\n\u00A77Usage: \u00A7e/saa config autoAcceptPartyInvites <true|false>"));
                                             return 1;
                                         })
                                 )
@@ -876,8 +897,8 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             "\n\u00A77suppressInDungeons = \u00A7f" + hudConfig.isSuppressInDungeons() +
                                             "\n\u00A77suppressInBattles = \u00A7f" + hudConfig.isSuppressInBattles() +
                                             "\n\u00A77driflootAlerts = \u00A7f" + hudConfig.isDriflootAlertsEnabled() +
-                                            "\n\u00A77hudHidden = \u00A7f" + hudConfig.isHudHidden() +
-                                            "\n\u00A77autoAcceptPartyInvites = \u00A7f" + hudConfig.isAutoAcceptPartyInvites()
+                                            "\n\u00A77gruntFinder = \u00A7f" + hudConfig.isGruntFinderEnabled() +
+                                            "\n\u00A77hudHidden = \u00A7f" + hudConfig.isHudHidden()
                                     ));
                                     return 1;
                                 })
@@ -990,7 +1011,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                     "\u00A7e/saa safari clear\u00A77 — Clear all safari/hunt data\n" +
                                     "\u00A7e/saa daycare\u00A77 — View daycare status\n" +
                                     "\u00A7e/saa daycare clear\u00A77 — Clear all daycare data\n" +
-                                    "\u00A7e/saa manualHatchMultiplier <0|2.0>\u00A77 — Override hatch speed (0=auto)\n" +
+                                    "\u00A7e/saa manualHatchMultiplier <0|1.5>\u00A77 — Override hatch speed (0=auto)\n" +
                                     "\u00A7e/saa wt\u00A77 — View wondertrade status\n" +
                                     "\u00A7e/saa wt clear\u00A77 — Clear wondertrade timer\n" +
                                     "\u00A7e/saa portal\u00A77 — View portal tracking status\n" +
@@ -1013,8 +1034,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                     "\u00A7e/saa config suppressInDungeons <bool>\u00A77 — Hide HUD in dungeons\n" +
                                     "\u00A7e/saa config suppressInBattles <bool>\u00A77 — Hide HUD in battles\n" +
                                     "\u00A7e/saa config driflootAlerts <bool>\u00A77 — Drifloot spawn alerts\n" +
-                                    "\u00A7e/saa config hudHidden <bool>\u00A77 — Manually hide HUD\n" +
-                                    "\u00A7e/saa config autoAcceptPartyInvites <bool>\u00A77 — Auto-accept party invites"
+                                    "\u00A7e/saa config hudHidden <bool>\u00A77 — Manually hide HUD"
                             ));
                             return 1;
                         })
@@ -1028,5 +1048,8 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
     public static DaycareManager getDaycareManager() { return daycareManager; }
     public static WondertradeManager getWondertradeManager() { return wondertradeManager; }
     public static PortalManager getPortalManager() { return portalManager; }
+    public static DungeonManager getDungeonManager() { return dungeonManager; }
+    public static GruntFinderTracker getGruntFinderTracker() { return gruntFinderTracker; }
     public static HudConfig getHudConfig() { return hudConfig; }
+
 }

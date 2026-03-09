@@ -77,13 +77,13 @@ public class HudConfig {
     private int daycareIvPercentUpper = 80;
 
     private boolean driflootAlertsEnabled = true;
+    private boolean gruntFinderEnabled = true;
 
     private boolean suppressInRaids = true;
     private boolean suppressInHideouts = false;
     private boolean suppressInDungeons = false;
     private boolean suppressInBattles = true;
     private boolean hudHidden = false;
-    private boolean autoAcceptPartyInvites = false;
     private boolean hasSeenWelcome = false;
 
     public HudConfig() {
@@ -475,6 +475,15 @@ public class HudConfig {
         save();
     }
 
+    public boolean isGruntFinderEnabled() {
+        return gruntFinderEnabled;
+    }
+
+    public void setGruntFinderEnabled(boolean gruntFinderEnabled) {
+        this.gruntFinderEnabled = gruntFinderEnabled;
+        save();
+    }
+
     public boolean isSuppressInRaids() { return suppressInRaids; }
 
     public void setSuppressInRaids(boolean suppressInRaids) {
@@ -504,13 +513,6 @@ public class HudConfig {
     }
 
     public boolean isHudHidden() { return hudHidden; }
-
-    public boolean isAutoAcceptPartyInvites() { return autoAcceptPartyInvites; }
-
-    public void setAutoAcceptPartyInvites(boolean autoAcceptPartyInvites) {
-        this.autoAcceptPartyInvites = autoAcceptPartyInvites;
-        save();
-    }
 
     public void setHudHidden(boolean hudHidden) {
         this.hudHidden = hudHidden;
@@ -566,6 +568,7 @@ public class HudConfig {
                     groupRefScreenWidth,
                     daycareBabyGuards,
                     driflootAlertsEnabled,
+                    gruntFinderEnabled,
                     suppressInRaids, suppressInHideouts, suppressInDungeons,
                     suppressInBattles, hudHidden,
                     daycareIvPercentLower, daycareIvPercentUpper,
@@ -628,6 +631,7 @@ public class HudConfig {
                     this.daycareBabyGuards = data.daycareBabyGuards != null ? data.daycareBabyGuards : true;
 
                     this.driflootAlertsEnabled = data.driflootAlertsEnabled != null ? data.driflootAlertsEnabled : true;
+                    this.gruntFinderEnabled = data.gruntFinderEnabled != null ? data.gruntFinderEnabled : true;
 
                     this.suppressInRaids = data.suppressInRaids != null ? data.suppressInRaids : true;
                     this.suppressInHideouts = data.suppressInHideouts != null ? data.suppressInHideouts : false;
@@ -666,6 +670,7 @@ public class HudConfig {
             Integer groupOffsetX, Integer groupOffsetY, Integer groupRefScreenWidth,
             Boolean daycareBabyGuards,
             Boolean driflootAlertsEnabled,
+            Boolean gruntFinderEnabled,
             Boolean suppressInRaids, Boolean suppressInHideouts, Boolean suppressInDungeons,
             Boolean suppressInBattles, Boolean hudHidden,
             Integer daycareIvPercentLower, Integer daycareIvPercentUpper,

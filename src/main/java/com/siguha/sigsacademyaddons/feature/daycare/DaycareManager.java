@@ -26,6 +26,7 @@ public class DaycareManager {
     private int lastIdentifiedEggCreatorPen = -1;
     private long lastEggCreationTimeMs = 0;
     private int eggsHatchedSinceMenuOpen = 0;
+    private long lastDaycareMenuCloseTimeMs = 0;
     private String pendingNavTarget = null;
     private float hatchSpeedMultiplier = 1.0f;
     private boolean rankDetected = false;
@@ -61,6 +62,7 @@ public class DaycareManager {
         claimedEggs.clear();
         penSpeciesMemory.clear();
         eggsHatchedSinceMenuOpen = 0;
+        lastDaycareMenuCloseTimeMs = 0;
         pendingNavTarget = null;
         pensUsedForEggCreation.clear();
         rankDetected = false;
@@ -148,12 +150,21 @@ public class DaycareManager {
                         finalStage = DaycareState.BreedingStage.BREEDING;
                         startTimer = true;
 
-                    } else if (scraped.serverBreedingProgress() > 0.05f) {
+                    } else if (scraped.serverBreedingProgress() > 0.01f) {
                         finalStage = DaycareState.BreedingStage.BREEDING;
                         startTimer = true;
 
                     } else {
-                        finalStage = DaycareState.BreedingStage.NEEDS_RESET;
+                        long timeSinceMenuClose = System.currentTimeMillis() - lastDaycareMenuCloseTimeMs;
+
+                        if (lastDaycareMenuCloseTimeMs > 0 && timeSinceMenuClose <= 60_000) {
+                            finalStage = DaycareState.BreedingStage.BREEDING;
+                            startTimer = true;
+                            lastDaycareMenuCloseTimeMs = 0;
+
+                        } else {
+                            finalStage = DaycareState.BreedingStage.NEEDS_RESET;
+                        }
                     }
                 }
                 case BREEDING, EGG_READY -> {
@@ -327,6 +338,7 @@ public class DaycareManager {
     }
 
     public void onDaycareMenuClosed() {
+        lastDaycareMenuCloseTimeMs = System.currentTimeMillis();
     }
 
     public void tick() {
@@ -464,7 +476,7 @@ public class DaycareManager {
             boolean hasStellar = displayText.codePoints().anyMatch(cp -> cp == STELLAR_CODEPOINT);
 
             if (hasPrismatic || hasStellar) {
-                hatchSpeedMultiplier = 2.0f;
+                hatchSpeedMultiplier = 1.5f;
             }
         }
 

@@ -54,7 +54,15 @@ public class PortalBossBarRenderer {
                 TITLE_TEXT_SCALE, COLOR_TITLE);
 
         int horizontalDist = (int) portalManager.getHorizontalDistance();
-        String distText = horizontalDist + " Blocks Away";
+        double verticalDelta = portalManager.getVerticalDelta();
+        String distText;
+        if (Math.abs(verticalDelta) > 2.0) {
+            int vertDist = (int) verticalDelta;
+            String vertLabel = vertDist > 0 ? vertDist + " Above" : Math.abs(vertDist) + " Below";
+            distText = horizontalDist + " Blocks Away (" + vertLabel + ")";
+        } else {
+            distText = horizontalDist + " Blocks Away";
+        }
         drawScaledCenteredString(graphics, font, distText, screenCenterX, DISTANCE_Y,
                 DISTANCE_TEXT_SCALE, COLOR_DISTANCE);
 
@@ -72,7 +80,6 @@ public class PortalBossBarRenderer {
         graphics.fill(indicatorLeft, indicatorTop,
                 indicatorLeft + INDICATOR_WIDTH, indicatorTop + INDICATOR_HEIGHT, COLOR_INDICATOR);
 
-        double verticalDelta = portalManager.getVerticalDelta();
         if (verticalDelta > 1.0) {
             drawTriangleUp(graphics, indicatorCenterX, indicatorTop - TRIANGLE_HEIGHT - TRIANGLE_GAP);
         } else if (verticalDelta < -1.0) {

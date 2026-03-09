@@ -178,6 +178,15 @@ public class PortalManager {
         return "Tier " + activeTier + " " + typeText + " Spawned";
     }
 
+    public double getFullDistance() {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null || portalPos == null) return 0;
+        double dx = portalPos.getX() + 0.5 - player.getX();
+        double dy = portalPos.getY() + 0.5 - player.getEyeY();
+        double dz = portalPos.getZ() + 0.5 - player.getZ();
+        return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    }
+
     public double getHorizontalDistance() {
         LocalPlayer player = Minecraft.getInstance().player;
         if (player == null || portalPos == null) return 0;
@@ -213,7 +222,7 @@ public class PortalManager {
                     return;
                 }
 
-                double distance = getHorizontalDistance();
+                double distance = getFullDistance();
                 if (distance < ARRIVAL_DISTANCE || distance > MAX_DISTANCE) {
                     clear();
                     return;

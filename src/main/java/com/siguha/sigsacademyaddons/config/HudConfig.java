@@ -85,6 +85,7 @@ public class HudConfig {
     private boolean suppressInBattles = true;
     private boolean hudHidden = false;
     private boolean autoAcceptPartyInvites = false;
+    private boolean messageNotificationSound = true;
     private boolean hasSeenWelcome = false;
 
     public HudConfig() {
@@ -527,6 +528,13 @@ public class HudConfig {
         save();
     }
 
+    public boolean isMessageNotificationSound() { return messageNotificationSound; }
+
+    public void setMessageNotificationSound(boolean messageNotificationSound) {
+        this.messageNotificationSound = messageNotificationSound;
+        save();
+    }
+
     public boolean hasSeenWelcome() { return hasSeenWelcome; }
 
     public void setHasSeenWelcome(boolean hasSeenWelcome) {
@@ -580,7 +588,7 @@ public class HudConfig {
                     suppressInRaids, suppressInHideouts, suppressInDungeons,
                     suppressInBattles, hudHidden,
                     daycareIvPercentLower, daycareIvPercentUpper,
-                    hasSeenWelcome);
+                    hasSeenWelcome, messageNotificationSound);
             try (Writer writer = Files.newBufferedWriter(filePath)) {
                 GSON.toJson(data, writer);
             }
@@ -651,6 +659,7 @@ public class HudConfig {
                     this.daycareIvPercentUpper = data.daycareIvPercentUpper != null
                             ? Math.max(0, Math.min(100, data.daycareIvPercentUpper)) : 80;
                     this.hasSeenWelcome = data.hasSeenWelcome != null ? data.hasSeenWelcome : false;
+                    this.messageNotificationSound = data.messageNotificationSound != null ? data.messageNotificationSound : true;
                 }
             }
         } catch (Exception e) {
@@ -682,6 +691,6 @@ public class HudConfig {
             Boolean suppressInRaids, Boolean suppressInHideouts, Boolean suppressInDungeons,
             Boolean suppressInBattles, Boolean hudHidden,
             Integer daycareIvPercentLower, Integer daycareIvPercentUpper,
-            Boolean hasSeenWelcome) {
+            Boolean hasSeenWelcome, Boolean messageNotificationSound) {
     }
 }

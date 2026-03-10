@@ -13,6 +13,7 @@ import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
+import net.minecraft.sounds.SoundEvents;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -31,6 +32,9 @@ public class ChatMessageHandler {
     );
     private static final Pattern PARTY_INVITE_PATTERN = Pattern.compile(
             "You have been invited to a party by (\\S+)!"
+    );
+    private static final Pattern PRIVATE_MESSAGE_PATTERN = Pattern.compile(
+            ".+ \u2192 You: .+"
     );
 
     private static final String HUNT_PROGRESS_MESSAGE = "Safari Hunt progress updated!";
@@ -196,6 +200,13 @@ public class ChatMessageHandler {
                     mc.getConnection().sendCommand("party accept " + inviterName);
                     SigsAcademyAddons.LOGGER.info("[SAA] Auto-accepted party invite from {}", inviterName);
                 }
+            }
+        }
+
+        if (hudConfig.isMessageNotificationSound() && PRIVATE_MESSAGE_PATTERN.matcher(text).matches()) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player != null) {
+                mc.player.playSound(SoundEvents.NOTE_BLOCK_COW_BELL.value(), 0.8f, 1.0f);
             }
         }
 

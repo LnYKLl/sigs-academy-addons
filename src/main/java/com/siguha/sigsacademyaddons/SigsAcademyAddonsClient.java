@@ -500,204 +500,326 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                 })
                         )
                         .then(ClientCommandManager.literal("config")
-                                .then(ClientCommandManager.literal("safariTimerAlways")
-                                        .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                .then(ClientCommandManager.literal("safari")
+                                        .then(ClientCommandManager.literal("timerAlways")
+                                                .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                                        .executes(context -> {
+                                                            boolean value = BoolArgumentType.getBool(context, "value");
+                                                            hudConfig.setSafariTimerAlways(value);
+                                                            String msg = value
+                                                                    ? "\u00A7aHUD will always display when active."
+                                                                    : "\u00A7aHUD will only display in the safari zone.";
+                                                            context.getSource().sendFeedback(Component.literal(msg));
+                                                            return 1;
+                                                        })
+                                                )
                                                 .executes(context -> {
-                                                    boolean value = BoolArgumentType.getBool(context, "value");
-                                                    hudConfig.setSafariTimerAlways(value);
-                                                    String msg = value
-                                                            ? "\u00A7aHUD will always display when active."
-                                                            : "\u00A7aHUD will only display in the safari zone.";
-                                                    context.getSource().sendFeedback(Component.literal(msg));
+                                                    boolean current = hudConfig.isSafariTimerAlways();
+                                                    context.getSource().sendFeedback(Component.literal(
+                                                            "\u00A77timerAlways = \u00A7f" + current +
+                                                            "\n\u00A77Usage: \u00A7e/saa config safari timerAlways <true|false>"));
+                                                    return 1;
+                                                })
+                                        )
+                                        .then(ClientCommandManager.literal("menuEnabled")
+                                                .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                                        .executes(context -> {
+                                                            boolean value = BoolArgumentType.getBool(context, "value");
+                                                            hudConfig.setSafariMenuEnabled(value);
+                                                            String msg = value
+                                                                    ? "\u00A7aSafari HUD enabled."
+                                                                    : "\u00A7aSafari HUD disabled.";
+                                                            context.getSource().sendFeedback(Component.literal(msg));
+                                                            return 1;
+                                                        })
+                                                )
+                                                .executes(context -> {
+                                                    boolean current = hudConfig.isSafariMenuEnabled();
+                                                    context.getSource().sendFeedback(Component.literal(
+                                                            "\u00A77menuEnabled = \u00A7f" + current +
+                                                            "\n\u00A77Usage: \u00A7e/saa config safari menuEnabled <true|false>"));
+                                                    return 1;
+                                                })
+                                        )
+                                        .then(ClientCommandManager.literal("questMonGlow")
+                                                .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                                        .executes(context -> {
+                                                            boolean value = BoolArgumentType.getBool(context, "value");
+                                                            hudConfig.setSafariQuestMonGlow(value);
+                                                            String msg = value
+                                                                    ? "\u00A7aQuest Pokemon glow enabled."
+                                                                    : "\u00A7aQuest Pokemon glow disabled.";
+                                                            context.getSource().sendFeedback(Component.literal(msg));
+                                                            return 1;
+                                                        })
+                                                )
+                                                .executes(context -> {
+                                                    boolean current = hudConfig.isSafariQuestMonGlow();
+                                                    context.getSource().sendFeedback(Component.literal(
+                                                            "\u00A77questMonGlow = \u00A7f" + current +
+                                                            "\n\u00A77Usage: \u00A7e/saa config safari questMonGlow <true|false>"));
                                                     return 1;
                                                 })
                                         )
                                         .executes(context -> {
-                                            boolean current = hudConfig.isSafariTimerAlways();
                                             context.getSource().sendFeedback(Component.literal(
-                                                    "\u00A77safariTimerAlways = \u00A7f" + current +
-                                                    "\n\u00A77Usage: \u00A7e/saa config safariTimerAlways <true|false>"));
+                                                    "\u00A76Safari Config:\n" +
+                                                    "\u00A77menuEnabled = \u00A7f" + hudConfig.isSafariMenuEnabled() +
+                                                    "\n\u00A77timerAlways = \u00A7f" + hudConfig.isSafariTimerAlways() +
+                                                    "\n\u00A77questMonGlow = \u00A7f" + hudConfig.isSafariQuestMonGlow()));
                                             return 1;
                                         })
                                 )
-                                .then(ClientCommandManager.literal("safariMenuEnabled")
-                                        .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                .then(ClientCommandManager.literal("daycare")
+                                        .then(ClientCommandManager.literal("menuEnabled")
+                                                .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                                        .executes(context -> {
+                                                            boolean value = BoolArgumentType.getBool(context, "value");
+                                                            hudConfig.setDaycareMenuEnabled(value);
+                                                            String msg = value
+                                                                    ? "\u00A7aDaycare HUD enabled."
+                                                                    : "\u00A7aDaycare HUD disabled.";
+                                                            context.getSource().sendFeedback(Component.literal(msg));
+                                                            return 1;
+                                                        })
+                                                )
                                                 .executes(context -> {
-                                                    boolean value = BoolArgumentType.getBool(context, "value");
-                                                    hudConfig.setSafariMenuEnabled(value);
-                                                    String msg = value
-                                                            ? "\u00A7aSafari HUD enabled."
-                                                            : "\u00A7aSafari HUD disabled.";
-                                                    context.getSource().sendFeedback(Component.literal(msg));
+                                                    boolean current = hudConfig.isDaycareMenuEnabled();
+                                                    context.getSource().sendFeedback(Component.literal(
+                                                            "\u00A77menuEnabled = \u00A7f" + current +
+                                                            "\n\u00A77Usage: \u00A7e/saa config daycare menuEnabled <true|false>"));
+                                                    return 1;
+                                                })
+                                        )
+                                        .then(ClientCommandManager.literal("soundsEnabled")
+                                                .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                                        .executes(context -> {
+                                                            boolean value = BoolArgumentType.getBool(context, "value");
+                                                            hudConfig.setDaycareSoundsEnabled(value);
+                                                            String msg = value
+                                                                    ? "\u00A7aDaycare sounds enabled."
+                                                                    : "\u00A7aDaycare sounds disabled.";
+                                                            context.getSource().sendFeedback(Component.literal(msg));
+                                                            return 1;
+                                                        })
+                                                )
+                                                .executes(context -> {
+                                                    boolean current = hudConfig.isDaycareSoundsEnabled();
+                                                    context.getSource().sendFeedback(Component.literal(
+                                                            "\u00A77soundsEnabled = \u00A7f" + current +
+                                                            "\n\u00A77Usage: \u00A7e/saa config daycare soundsEnabled <true|false>"));
+                                                    return 1;
+                                                })
+                                        )
+                                        .then(ClientCommandManager.literal("eggsHatchingSlots")
+                                                .then(ClientCommandManager.argument("value", IntegerArgumentType.integer(0, 5))
+                                                        .executes(context -> {
+                                                            int value = IntegerArgumentType.getInteger(context, "value");
+                                                            hudConfig.setDaycareEggsHatchingSlots(value);
+                                                            String msg = value == 0
+                                                                    ? "\u00A7aDaycare hatching section hidden."
+                                                                    : "\u00A7aDaycare will show up to " + value + " hatching eggs.";
+                                                            context.getSource().sendFeedback(Component.literal(msg));
+                                                            return 1;
+                                                        })
+                                                )
+                                                .executes(context -> {
+                                                    int current = hudConfig.getDaycareEggsHatchingSlots();
+                                                    context.getSource().sendFeedback(Component.literal(
+                                                            "\u00A77eggsHatchingSlots = \u00A7f" + current +
+                                                            "\n\u00A77Usage: \u00A7e/saa config daycare eggsHatchingSlots <0-5>" +
+                                                            "\n\u00A77Set to 0 to hide hatching section."));
+                                                    return 1;
+                                                })
+                                        )
+                                        .then(ClientCommandManager.literal("babyGuards")
+                                                .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                                        .executes(context -> {
+                                                            boolean value = BoolArgumentType.getBool(context, "value");
+                                                            hudConfig.setDaycareBabyGuards(value);
+                                                            String msg = value
+                                                                    ? "\u00A7aDaycare baby guards enabled."
+                                                                    : "\u00A7aDaycare baby guards disabled.";
+                                                            context.getSource().sendFeedback(Component.literal(msg));
+                                                            return 1;
+                                                        })
+                                                )
+                                                .executes(context -> {
+                                                    boolean current = hudConfig.isDaycareBabyGuards();
+                                                    context.getSource().sendFeedback(Component.literal(
+                                                            "\u00A77babyGuards = \u00A7f" + current +
+                                                            "\n\u00A77Usage: \u00A7e/saa config daycare babyGuards <true|false>"));
                                                     return 1;
                                                 })
                                         )
                                         .executes(context -> {
-                                            boolean current = hudConfig.isSafariMenuEnabled();
                                             context.getSource().sendFeedback(Component.literal(
-                                                    "\u00A77safariMenuEnabled = \u00A7f" + current +
-                                                    "\n\u00A77Usage: \u00A7e/saa config safariMenuEnabled <true|false>"));
+                                                    "\u00A76Daycare Config:\n" +
+                                                    "\u00A77menuEnabled = \u00A7f" + hudConfig.isDaycareMenuEnabled() +
+                                                    "\n\u00A77soundsEnabled = \u00A7f" + hudConfig.isDaycareSoundsEnabled() +
+                                                    "\n\u00A77eggsHatchingSlots = \u00A7f" + hudConfig.getDaycareEggsHatchingSlots() +
+                                                    "\n\u00A77babyGuards = \u00A7f" + hudConfig.isDaycareBabyGuards()));
                                             return 1;
                                         })
                                 )
-                                .then(ClientCommandManager.literal("safariQuestMonGlow")
-                                        .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                .then(ClientCommandManager.literal("wt")
+                                        .then(ClientCommandManager.literal("menuEnabled")
+                                                .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                                        .executes(context -> {
+                                                            boolean value = BoolArgumentType.getBool(context, "value");
+                                                            hudConfig.setWtMenuEnabled(value);
+                                                            String msg = value
+                                                                    ? "\u00A7aWondertrade HUD enabled."
+                                                                    : "\u00A7aWondertrade HUD disabled.";
+                                                            context.getSource().sendFeedback(Component.literal(msg));
+                                                            return 1;
+                                                        })
+                                                )
                                                 .executes(context -> {
-                                                    boolean value = BoolArgumentType.getBool(context, "value");
-                                                    hudConfig.setSafariQuestMonGlow(value);
-                                                    String msg = value
-                                                            ? "\u00A7aQuest Pokemon glow enabled."
-                                                            : "\u00A7aQuest Pokemon glow disabled.";
-                                                    context.getSource().sendFeedback(Component.literal(msg));
+                                                    boolean current = hudConfig.isWtMenuEnabled();
+                                                    context.getSource().sendFeedback(Component.literal(
+                                                            "\u00A77menuEnabled = \u00A7f" + current +
+                                                            "\n\u00A77Usage: \u00A7e/saa config wt menuEnabled <true|false>"));
+                                                    return 1;
+                                                })
+                                        )
+                                        .then(ClientCommandManager.literal("showChatReminders")
+                                                .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                                        .executes(context -> {
+                                                            boolean value = BoolArgumentType.getBool(context, "value");
+                                                            hudConfig.setWtShowChatReminders(value);
+                                                            String msg = value
+                                                                    ? "\u00A7aWT chat reminders enabled."
+                                                                    : "\u00A7aWT chat reminders disabled.";
+                                                            context.getSource().sendFeedback(Component.literal(msg));
+                                                            return 1;
+                                                        })
+                                                )
+                                                .executes(context -> {
+                                                    boolean current = hudConfig.isWtShowChatReminders();
+                                                    context.getSource().sendFeedback(Component.literal(
+                                                            "\u00A77showChatReminders = \u00A7f" + current +
+                                                            "\n\u00A77Usage: \u00A7e/saa config wt showChatReminders <true|false>"));
+                                                    return 1;
+                                                })
+                                        )
+                                        .then(ClientCommandManager.literal("soundsEnabled")
+                                                .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                                        .executes(context -> {
+                                                            boolean value = BoolArgumentType.getBool(context, "value");
+                                                            hudConfig.setWtSoundsEnabled(value);
+                                                            String msg = value
+                                                                    ? "\u00A7aWT sounds enabled."
+                                                                    : "\u00A7aWT sounds disabled.";
+                                                            context.getSource().sendFeedback(Component.literal(msg));
+                                                            return 1;
+                                                        })
+                                                )
+                                                .executes(context -> {
+                                                    boolean current = hudConfig.isWtSoundsEnabled();
+                                                    context.getSource().sendFeedback(Component.literal(
+                                                            "\u00A77soundsEnabled = \u00A7f" + current +
+                                                            "\n\u00A77Usage: \u00A7e/saa config wt soundsEnabled <true|false>"));
                                                     return 1;
                                                 })
                                         )
                                         .executes(context -> {
-                                            boolean current = hudConfig.isSafariQuestMonGlow();
                                             context.getSource().sendFeedback(Component.literal(
-                                                    "\u00A77safariQuestMonGlow = \u00A7f" + current +
-                                                    "\n\u00A77Usage: \u00A7e/saa config safariQuestMonGlow <true|false>"));
+                                                    "\u00A76Wondertrade Config:\n" +
+                                                    "\u00A77menuEnabled = \u00A7f" + hudConfig.isWtMenuEnabled() +
+                                                    "\n\u00A77showChatReminders = \u00A7f" + hudConfig.isWtShowChatReminders() +
+                                                    "\n\u00A77soundsEnabled = \u00A7f" + hudConfig.isWtSoundsEnabled()));
                                             return 1;
                                         })
                                 )
-                                .then(ClientCommandManager.literal("daycareMenuEnabled")
-                                        .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                .then(ClientCommandManager.literal("suppress")
+                                        .then(ClientCommandManager.literal("inRaids")
+                                                .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                                        .executes(context -> {
+                                                            boolean value = BoolArgumentType.getBool(context, "value");
+                                                            hudConfig.setSuppressInRaids(value);
+                                                            String msg = value
+                                                                    ? "\u00A7aHUD will be suppressed during raids."
+                                                                    : "\u00A7aHUD will show during raids.";
+                                                            context.getSource().sendFeedback(Component.literal(msg));
+                                                            return 1;
+                                                        })
+                                                )
                                                 .executes(context -> {
-                                                    boolean value = BoolArgumentType.getBool(context, "value");
-                                                    hudConfig.setDaycareMenuEnabled(value);
-                                                    String msg = value
-                                                            ? "\u00A7aDaycare HUD enabled."
-                                                            : "\u00A7aDaycare HUD disabled.";
-                                                    context.getSource().sendFeedback(Component.literal(msg));
+                                                    boolean current = hudConfig.isSuppressInRaids();
+                                                    context.getSource().sendFeedback(Component.literal(
+                                                            "\u00A77inRaids = \u00A7f" + current +
+                                                            "\n\u00A77Usage: \u00A7e/saa config suppress inRaids <true|false>"));
+                                                    return 1;
+                                                })
+                                        )
+                                        .then(ClientCommandManager.literal("inHideouts")
+                                                .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                                        .executes(context -> {
+                                                            boolean value = BoolArgumentType.getBool(context, "value");
+                                                            hudConfig.setSuppressInHideouts(value);
+                                                            String msg = value
+                                                                    ? "\u00A7aHUD will be suppressed in hideouts."
+                                                                    : "\u00A7aHUD will show in hideouts.";
+                                                            context.getSource().sendFeedback(Component.literal(msg));
+                                                            return 1;
+                                                        })
+                                                )
+                                                .executes(context -> {
+                                                    boolean current = hudConfig.isSuppressInHideouts();
+                                                    context.getSource().sendFeedback(Component.literal(
+                                                            "\u00A77inHideouts = \u00A7f" + current +
+                                                            "\n\u00A77Usage: \u00A7e/saa config suppress inHideouts <true|false>"));
+                                                    return 1;
+                                                })
+                                        )
+                                        .then(ClientCommandManager.literal("inDungeons")
+                                                .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                                        .executes(context -> {
+                                                            boolean value = BoolArgumentType.getBool(context, "value");
+                                                            hudConfig.setSuppressInDungeons(value);
+                                                            String msg = value
+                                                                    ? "\u00A7aHUD will be suppressed in dungeons."
+                                                                    : "\u00A7aHUD will show in dungeons.";
+                                                            context.getSource().sendFeedback(Component.literal(msg));
+                                                            return 1;
+                                                        })
+                                                )
+                                                .executes(context -> {
+                                                    boolean current = hudConfig.isSuppressInDungeons();
+                                                    context.getSource().sendFeedback(Component.literal(
+                                                            "\u00A77inDungeons = \u00A7f" + current +
+                                                            "\n\u00A77Usage: \u00A7e/saa config suppress inDungeons <true|false>"));
+                                                    return 1;
+                                                })
+                                        )
+                                        .then(ClientCommandManager.literal("inBattles")
+                                                .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                                        .executes(context -> {
+                                                            boolean value = BoolArgumentType.getBool(context, "value");
+                                                            hudConfig.setSuppressInBattles(value);
+                                                            String msg = value
+                                                                    ? "\u00A7aHUD will be suppressed during battles."
+                                                                    : "\u00A7aHUD will show during battles.";
+                                                            context.getSource().sendFeedback(Component.literal(msg));
+                                                            return 1;
+                                                        })
+                                                )
+                                                .executes(context -> {
+                                                    boolean current = hudConfig.isSuppressInBattles();
+                                                    context.getSource().sendFeedback(Component.literal(
+                                                            "\u00A77inBattles = \u00A7f" + current +
+                                                            "\n\u00A77Usage: \u00A7e/saa config suppress inBattles <true|false>"));
                                                     return 1;
                                                 })
                                         )
                                         .executes(context -> {
-                                            boolean current = hudConfig.isDaycareMenuEnabled();
                                             context.getSource().sendFeedback(Component.literal(
-                                                    "\u00A77daycareMenuEnabled = \u00A7f" + current +
-                                                    "\n\u00A77Usage: \u00A7e/saa config daycareMenuEnabled <true|false>"));
-                                            return 1;
-                                        })
-                                )
-                                .then(ClientCommandManager.literal("daycareSoundsEnabled")
-                                        .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
-                                                .executes(context -> {
-                                                    boolean value = BoolArgumentType.getBool(context, "value");
-                                                    hudConfig.setDaycareSoundsEnabled(value);
-                                                    String msg = value
-                                                            ? "\u00A7aDaycare sounds enabled."
-                                                            : "\u00A7aDaycare sounds disabled.";
-                                                    context.getSource().sendFeedback(Component.literal(msg));
-                                                    return 1;
-                                                })
-                                        )
-                                        .executes(context -> {
-                                            boolean current = hudConfig.isDaycareSoundsEnabled();
-                                            context.getSource().sendFeedback(Component.literal(
-                                                    "\u00A77daycareSoundsEnabled = \u00A7f" + current +
-                                                    "\n\u00A77Usage: \u00A7e/saa config daycareSoundsEnabled <true|false>"));
-                                            return 1;
-                                        })
-                                )
-                                .then(ClientCommandManager.literal("daycareEggsHatchingSlots")
-                                        .then(ClientCommandManager.argument("value", IntegerArgumentType.integer(0, 5))
-                                                .executes(context -> {
-                                                    int value = IntegerArgumentType.getInteger(context, "value");
-                                                    hudConfig.setDaycareEggsHatchingSlots(value);
-                                                    String msg = value == 0
-                                                            ? "\u00A7aDaycare hatching section hidden."
-                                                            : "\u00A7aDaycare will show up to " + value + " hatching eggs.";
-                                                    context.getSource().sendFeedback(Component.literal(msg));
-                                                    return 1;
-                                                })
-                                        )
-                                        .executes(context -> {
-                                            int current = hudConfig.getDaycareEggsHatchingSlots();
-                                            context.getSource().sendFeedback(Component.literal(
-                                                    "\u00A77daycareEggsHatchingSlots = \u00A7f" + current +
-                                                    "\n\u00A77Usage: \u00A7e/saa config daycareEggsHatchingSlots <0-5>" +
-                                                    "\n\u00A77Set to 0 to hide hatching section."));
-                                            return 1;
-                                        })
-                                )
-                                .then(ClientCommandManager.literal("daycareBabyGuards")
-                                        .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
-                                                .executes(context -> {
-                                                    boolean value = BoolArgumentType.getBool(context, "value");
-                                                    hudConfig.setDaycareBabyGuards(value);
-                                                    String msg = value
-                                                            ? "\u00A7aDaycare baby guards enabled."
-                                                            : "\u00A7aDaycare baby guards disabled.";
-                                                    context.getSource().sendFeedback(Component.literal(msg));
-                                                    return 1;
-                                                })
-                                        )
-                                        .executes(context -> {
-                                            boolean current = hudConfig.isDaycareBabyGuards();
-                                            context.getSource().sendFeedback(Component.literal(
-                                                    "\u00A77daycareBabyGuards = \u00A7f" + current +
-                                                    "\n\u00A77Usage: \u00A7e/saa config daycareBabyGuards <true|false>"));
-                                            return 1;
-                                        })
-                                )
-                                .then(ClientCommandManager.literal("wtMenuEnabled")
-                                        .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
-                                                .executes(context -> {
-                                                    boolean value = BoolArgumentType.getBool(context, "value");
-                                                    hudConfig.setWtMenuEnabled(value);
-                                                    String msg = value
-                                                            ? "\u00A7aWondertrade HUD enabled."
-                                                            : "\u00A7aWondertrade HUD disabled.";
-                                                    context.getSource().sendFeedback(Component.literal(msg));
-                                                    return 1;
-                                                })
-                                        )
-                                        .executes(context -> {
-                                            boolean current = hudConfig.isWtMenuEnabled();
-                                            context.getSource().sendFeedback(Component.literal(
-                                                    "\u00A77wtMenuEnabled = \u00A7f" + current +
-                                                    "\n\u00A77Usage: \u00A7e/saa config wtMenuEnabled <true|false>"));
-                                            return 1;
-                                        })
-                                )
-                                .then(ClientCommandManager.literal("wtShowChatReminders")
-                                        .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
-                                                .executes(context -> {
-                                                    boolean value = BoolArgumentType.getBool(context, "value");
-                                                    hudConfig.setWtShowChatReminders(value);
-                                                    String msg = value
-                                                            ? "\u00A7aWT chat reminders enabled."
-                                                            : "\u00A7aWT chat reminders disabled.";
-                                                    context.getSource().sendFeedback(Component.literal(msg));
-                                                    return 1;
-                                                })
-                                        )
-                                        .executes(context -> {
-                                            boolean current = hudConfig.isWtShowChatReminders();
-                                            context.getSource().sendFeedback(Component.literal(
-                                                    "\u00A77wtShowChatReminders = \u00A7f" + current +
-                                                    "\n\u00A77Usage: \u00A7e/saa config wtShowChatReminders <true|false>"));
-                                            return 1;
-                                        })
-                                )
-                                .then(ClientCommandManager.literal("wtSoundsEnabled")
-                                        .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
-                                                .executes(context -> {
-                                                    boolean value = BoolArgumentType.getBool(context, "value");
-                                                    hudConfig.setWtSoundsEnabled(value);
-                                                    String msg = value
-                                                            ? "\u00A7aWT sounds enabled."
-                                                            : "\u00A7aWT sounds disabled.";
-                                                    context.getSource().sendFeedback(Component.literal(msg));
-                                                    return 1;
-                                                })
-                                        )
-                                        .executes(context -> {
-                                            boolean current = hudConfig.isWtSoundsEnabled();
-                                            context.getSource().sendFeedback(Component.literal(
-                                                    "\u00A77wtSoundsEnabled = \u00A7f" + current +
-                                                    "\n\u00A77Usage: \u00A7e/saa config wtSoundsEnabled <true|false>"));
+                                                    "\u00A76Suppress Config:\n" +
+                                                    "\u00A77inRaids = \u00A7f" + hudConfig.isSuppressInRaids() +
+                                                    "\n\u00A77inHideouts = \u00A7f" + hudConfig.isSuppressInHideouts() +
+                                                    "\n\u00A77inDungeons = \u00A7f" + hudConfig.isSuppressInDungeons() +
+                                                    "\n\u00A77inBattles = \u00A7f" + hudConfig.isSuppressInBattles()));
                                             return 1;
                                         })
                                 )
@@ -751,83 +873,23 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             return 1;
                                         })
                                 )
-                                .then(ClientCommandManager.literal("suppressInRaids")
+                                .then(ClientCommandManager.literal("hudHidden")
                                         .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
                                                 .executes(context -> {
                                                     boolean value = BoolArgumentType.getBool(context, "value");
-                                                    hudConfig.setSuppressInRaids(value);
+                                                    hudConfig.setHudHidden(value);
                                                     String msg = value
-                                                            ? "\u00A7aHUD will be suppressed during raids."
-                                                            : "\u00A7aHUD will show during raids.";
+                                                            ? "\u00A7aHUD manually hidden."
+                                                            : "\u00A7aHUD manually shown.";
                                                     context.getSource().sendFeedback(Component.literal(msg));
                                                     return 1;
                                                 })
                                         )
                                         .executes(context -> {
-                                            boolean current = hudConfig.isSuppressInRaids();
+                                            boolean current = hudConfig.isHudHidden();
                                             context.getSource().sendFeedback(Component.literal(
-                                                    "\u00A77suppressInRaids = \u00A7f" + current +
-                                                    "\n\u00A77Usage: \u00A7e/saa config suppressInRaids <true|false>"));
-                                            return 1;
-                                        })
-                                )
-                                .then(ClientCommandManager.literal("suppressInHideouts")
-                                        .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
-                                                .executes(context -> {
-                                                    boolean value = BoolArgumentType.getBool(context, "value");
-                                                    hudConfig.setSuppressInHideouts(value);
-                                                    String msg = value
-                                                            ? "\u00A7aHUD will be suppressed in hideouts."
-                                                            : "\u00A7aHUD will show in hideouts.";
-                                                    context.getSource().sendFeedback(Component.literal(msg));
-                                                    return 1;
-                                                })
-                                        )
-                                        .executes(context -> {
-                                            boolean current = hudConfig.isSuppressInHideouts();
-                                            context.getSource().sendFeedback(Component.literal(
-                                                    "\u00A77suppressInHideouts = \u00A7f" + current +
-                                                    "\n\u00A77Usage: \u00A7e/saa config suppressInHideouts <true|false>"));
-                                            return 1;
-                                        })
-                                )
-                                .then(ClientCommandManager.literal("suppressInDungeons")
-                                        .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
-                                                .executes(context -> {
-                                                    boolean value = BoolArgumentType.getBool(context, "value");
-                                                    hudConfig.setSuppressInDungeons(value);
-                                                    String msg = value
-                                                            ? "\u00A7aHUD will be suppressed in dungeons."
-                                                            : "\u00A7aHUD will show in dungeons.";
-                                                    context.getSource().sendFeedback(Component.literal(msg));
-                                                    return 1;
-                                                })
-                                        )
-                                        .executes(context -> {
-                                            boolean current = hudConfig.isSuppressInDungeons();
-                                            context.getSource().sendFeedback(Component.literal(
-                                                    "\u00A77suppressInDungeons = \u00A7f" + current +
-                                                    "\n\u00A77Usage: \u00A7e/saa config suppressInDungeons <true|false>"));
-                                            return 1;
-                                        })
-                                )
-                                .then(ClientCommandManager.literal("suppressInBattles")
-                                        .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
-                                                .executes(context -> {
-                                                    boolean value = BoolArgumentType.getBool(context, "value");
-                                                    hudConfig.setSuppressInBattles(value);
-                                                    String msg = value
-                                                            ? "\u00A7aHUD will be suppressed during battles."
-                                                            : "\u00A7aHUD will show during battles.";
-                                                    context.getSource().sendFeedback(Component.literal(msg));
-                                                    return 1;
-                                                })
-                                        )
-                                        .executes(context -> {
-                                            boolean current = hudConfig.isSuppressInBattles();
-                                            context.getSource().sendFeedback(Component.literal(
-                                                    "\u00A77suppressInBattles = \u00A7f" + current +
-                                                    "\n\u00A77Usage: \u00A7e/saa config suppressInBattles <true|false>"));
+                                                    "\u00A77hudHidden = \u00A7f" + current +
+                                                    "\n\u00A77Usage: \u00A7e/saa config hudHidden <true|false>"));
                                             return 1;
                                         })
                                 )
@@ -871,23 +933,23 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             return 1;
                                         })
                                 )
-                                .then(ClientCommandManager.literal("hudHidden")
+                                .then(ClientCommandManager.literal("messageNotificationSound")
                                         .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
                                                 .executes(context -> {
                                                     boolean value = BoolArgumentType.getBool(context, "value");
-                                                    hudConfig.setHudHidden(value);
+                                                    hudConfig.setMessageNotificationSound(value);
                                                     String msg = value
-                                                            ? "\u00A7aHUD manually hidden."
-                                                            : "\u00A7aHUD manually shown.";
+                                                            ? "\u00A7aMessage notification sound enabled."
+                                                            : "\u00A7aMessage notification sound disabled.";
                                                     context.getSource().sendFeedback(Component.literal(msg));
                                                     return 1;
                                                 })
                                         )
                                         .executes(context -> {
-                                            boolean current = hudConfig.isHudHidden();
+                                            boolean current = hudConfig.isMessageNotificationSound();
                                             context.getSource().sendFeedback(Component.literal(
-                                                    "\u00A77hudHidden = \u00A7f" + current +
-                                                    "\n\u00A77Usage: \u00A7e/saa config hudHidden <true|false>"));
+                                                    "\u00A77messageNotificationSound = \u00A7f" + current +
+                                                    "\n\u00A77Usage: \u00A7e/saa config messageNotificationSound <true|false>"));
                                             return 1;
                                         })
                                 )
@@ -913,30 +975,37 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                 )
                                 .executes(context -> {
                                     context.getSource().sendFeedback(Component.literal(
-                                            "\u00A76Configuration:\n" +
-                                            "\u00A77safariMenuEnabled = \u00A7f" + hudConfig.isSafariMenuEnabled() +
-                                            "\n\u00A77safariTimerAlways = \u00A7f" + hudConfig.isSafariTimerAlways() +
-                                            "\n\u00A77safariQuestMonGlow = \u00A7f" + hudConfig.isSafariQuestMonGlow() +
-                                            "\n\u00A77daycareMenuEnabled = \u00A7f" + hudConfig.isDaycareMenuEnabled() +
-                                            "\n\u00A77daycareSoundsEnabled = \u00A7f" + hudConfig.isDaycareSoundsEnabled() +
-                                            "\n\u00A77daycareEggsHatchingSlots = \u00A7f" + hudConfig.getDaycareEggsHatchingSlots() +
-                                            "\n\u00A77daycareBabyGuards = \u00A7f" + hudConfig.isDaycareBabyGuards() +
-                                            "\n\u00A77wtMenuEnabled = \u00A7f" + hudConfig.isWtMenuEnabled() +
-                                            "\n\u00A77wtShowChatReminders = \u00A7f" + hudConfig.isWtShowChatReminders() +
-                                            "\n\u00A77wtSoundsEnabled = \u00A7f" + hudConfig.isWtSoundsEnabled() +
+                                            "\u00A76Configuration:" +
+                                            "\n\n\u00A7e[Global]" +
                                             "\n\u00A77hudStyle = \u00A7f" + hudConfig.getHudStyle().name().toLowerCase() +
                                             "\n\u00A77hudLayout = \u00A7f" + hudConfig.getHudLayout().name().toLowerCase() +
-                                            "\n\u00A77safariScale = \u00A7f" + String.format("%.0f%%", hudConfig.getHudScale() * 100) +
-                                            "\n\u00A77daycareScale = \u00A7f" + String.format("%.0f%%", hudConfig.getDaycareScale() * 100) +
-                                            "\n\u00A77wtScale = \u00A7f" + String.format("%.0f%%", hudConfig.getWtScale() * 100) +
-                                            "\n\u00A77suppressInRaids = \u00A7f" + hudConfig.isSuppressInRaids() +
-                                            "\n\u00A77suppressInHideouts = \u00A7f" + hudConfig.isSuppressInHideouts() +
-                                            "\n\u00A77suppressInDungeons = \u00A7f" + hudConfig.isSuppressInDungeons() +
-                                            "\n\u00A77suppressInBattles = \u00A7f" + hudConfig.isSuppressInBattles() +
+                                            "\n\u00A77hudHidden = \u00A7f" + hudConfig.isHudHidden() +
                                             "\n\u00A77driflootAlerts = \u00A7f" + hudConfig.isDriflootAlertsEnabled() +
                                             "\n\u00A77gruntFinder = \u00A7f" + hudConfig.isGruntFinderEnabled() +
-                                            "\n\u00A77hudHidden = \u00A7f" + hudConfig.isHudHidden() +
-                                            "\n\u00A77autoAcceptPartyInvites = \u00A7f" + hudConfig.isAutoAcceptPartyInvites()
+                                            "\n\u00A77messageNotificationSound = \u00A7f" + hudConfig.isMessageNotificationSound() +
+                                            "\n\u00A77autoAcceptPartyInvites = \u00A7f" + hudConfig.isAutoAcceptPartyInvites() +
+                                            "\n\n\u00A7e[Safari] \u00A77(/saa config safari)" +
+                                            "\n\u00A77menuEnabled = \u00A7f" + hudConfig.isSafariMenuEnabled() +
+                                            "\n\u00A77timerAlways = \u00A7f" + hudConfig.isSafariTimerAlways() +
+                                            "\n\u00A77questMonGlow = \u00A7f" + hudConfig.isSafariQuestMonGlow() +
+                                            "\n\n\u00A7e[Daycare] \u00A77(/saa config daycare)" +
+                                            "\n\u00A77menuEnabled = \u00A7f" + hudConfig.isDaycareMenuEnabled() +
+                                            "\n\u00A77soundsEnabled = \u00A7f" + hudConfig.isDaycareSoundsEnabled() +
+                                            "\n\u00A77eggsHatchingSlots = \u00A7f" + hudConfig.getDaycareEggsHatchingSlots() +
+                                            "\n\u00A77babyGuards = \u00A7f" + hudConfig.isDaycareBabyGuards() +
+                                            "\n\n\u00A7e[Wondertrade] \u00A77(/saa config wt)" +
+                                            "\n\u00A77menuEnabled = \u00A7f" + hudConfig.isWtMenuEnabled() +
+                                            "\n\u00A77showChatReminders = \u00A7f" + hudConfig.isWtShowChatReminders() +
+                                            "\n\u00A77soundsEnabled = \u00A7f" + hudConfig.isWtSoundsEnabled() +
+                                            "\n\n\u00A7e[Suppress] \u00A77(/saa config suppress)" +
+                                            "\n\u00A77inRaids = \u00A7f" + hudConfig.isSuppressInRaids() +
+                                            "\n\u00A77inHideouts = \u00A7f" + hudConfig.isSuppressInHideouts() +
+                                            "\n\u00A77inDungeons = \u00A7f" + hudConfig.isSuppressInDungeons() +
+                                            "\n\u00A77inBattles = \u00A7f" + hudConfig.isSuppressInBattles() +
+                                            "\n\n\u00A7e[Scales] \u00A77(use /saa gui to adjust)" +
+                                            "\n\u00A77safariScale = \u00A7f" + String.format("%.0f%%", hudConfig.getHudScale() * 100) +
+                                            "\n\u00A77daycareScale = \u00A7f" + String.format("%.0f%%", hudConfig.getDaycareScale() * 100) +
+                                            "\n\u00A77wtScale = \u00A7f" + String.format("%.0f%%", hudConfig.getWtScale() * 100)
                                     ));
                                     return 1;
                                 })
@@ -1039,6 +1108,17 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             return 1;
                                         })
                                 )
+                                .then(ClientCommandManager.literal("testMsgSound")
+                                        .executes(context -> {
+                                            net.minecraft.client.player.LocalPlayer player = net.minecraft.client.Minecraft.getInstance().player;
+                                            if (player != null) {
+                                                player.playSound(net.minecraft.sounds.SoundEvents.NOTE_BLOCK_COW_BELL.value(), 0.8f, 1.0f);
+                                                context.getSource().sendFeedback(Component.literal(
+                                                        "\u00A7a[Dev] Played message notification sound."));
+                                            }
+                                            return 1;
+                                        })
+                                )
                         )
                         .executes(context -> {
                             context.getSource().sendFeedback(Component.literal(
@@ -1054,26 +1134,19 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                     "\u00A7e/saa wt clear\u00A77 — Clear wondertrade timer\n" +
                                     "\u00A7e/saa portal\u00A77 — View portal tracking status\n" +
                                     "\u00A7e/saa portal clear\u00A77 — Clear portal tracking data\n" +
-                                    "\u00A7e/saa config\u00A77 — View configuration\n" +
-                                    "\u00A7e/saa config safariMenuEnabled <bool>\u00A77 — Safari HUD toggle\n" +
-                                    "\u00A7e/saa config safariTimerAlways <bool>\u00A77 — Show HUD outside safari zone\n" +
-                                    "\u00A7e/saa config safariQuestMonGlow <bool>\u00A77 — Glow on quest-matching Pokemon\n" +
-                                    "\u00A7e/saa config daycareMenuEnabled <bool>\u00A77 — Daycare HUD toggle\n" +
-                                    "\u00A7e/saa config daycareSoundsEnabled <bool>\u00A77 — Daycare sound alerts toggle\n" +
-                                    "\u00A7e/saa config daycareEggsHatchingSlots <0-5>\u00A77 — Max eggs shown (0=hide)\n" +
-                                    "\u00A7e/saa config daycareBabyGuards <bool>\u00A77 — Confirm before removing parents\n" +
-                                    "\u00A7e/saa config wtMenuEnabled <bool>\u00A77 — Wondertrade HUD toggle\n" +
-                                    "\u00A7e/saa config wtShowChatReminders <bool>\u00A77 — WT chat reminder toggle\n" +
-                                    "\u00A7e/saa config wtSoundsEnabled <bool>\u00A77 — WT sound alerts toggle\n" +
+                                    "\n\u00A76Config Commands:\n" +
+                                    "\u00A7e/saa config\u00A77 — View all configuration\n" +
                                     "\u00A7e/saa config hudStyle <solid|transparent>\u00A77 — HUD background style\n" +
                                     "\u00A7e/saa config hudLayout <full|compact>\u00A77 — HUD layout mode\n" +
-                                    "\u00A7e/saa config suppressInRaids <bool>\u00A77 — Hide HUD in raids\n" +
-                                    "\u00A7e/saa config suppressInHideouts <bool>\u00A77 — Hide HUD in hideouts\n" +
-                                    "\u00A7e/saa config suppressInDungeons <bool>\u00A77 — Hide HUD in dungeons\n" +
-                                    "\u00A7e/saa config suppressInBattles <bool>\u00A77 — Hide HUD in battles\n" +
-                                    "\u00A7e/saa config driflootAlerts <bool>\u00A77 — Drifloot spawn alerts\n" +
                                     "\u00A7e/saa config hudHidden <bool>\u00A77 — Manually hide HUD\n" +
-                                    "\u00A7e/saa config autoAcceptPartyInvites <bool>\u00A77 — Auto-accept party invites"
+                                    "\u00A7e/saa config driflootAlerts <bool>\u00A77 — Drifloot spawn alerts\n" +
+                                    "\u00A7e/saa config gruntFinder <bool>\u00A77 — Grunt finder toggle\n" +
+                                    "\u00A7e/saa config messageNotificationSound <bool>\u00A77 — PM notification sound\n" +
+                                    "\u00A7e/saa config autoAcceptPartyInvites <bool>\u00A77 — Auto-accept party invites\n" +
+                                    "\u00A7e/saa config safari\u00A77 — Safari config (menuEnabled, timerAlways, questMonGlow)\n" +
+                                    "\u00A7e/saa config daycare\u00A77 — Daycare config (menuEnabled, soundsEnabled, eggsHatchingSlots, babyGuards)\n" +
+                                    "\u00A7e/saa config wt\u00A77 — Wondertrade config (menuEnabled, showChatReminders, soundsEnabled)\n" +
+                                    "\u00A7e/saa config suppress\u00A77 — Suppress config (inRaids, inHideouts, inDungeons, inBattles)"
                             ));
                             return 1;
                         })

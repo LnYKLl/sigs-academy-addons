@@ -9,6 +9,7 @@ import com.siguha.sigsacademyaddons.data.DaycareDataStore;
 import com.siguha.sigsacademyaddons.data.HuntDataStore;
 import com.siguha.sigsacademyaddons.data.WondertradeDataStore;
 import com.siguha.sigsacademyaddons.feature.cardalbum.CardAlbumQuickOpen;
+import com.siguha.sigsacademyaddons.feature.cardstats.CardStatsManager;
 import com.siguha.sigsacademyaddons.feature.daycare.DaycareManager;
 import com.siguha.sigsacademyaddons.feature.daycare.DaycareSoundPlayer;
 import com.siguha.sigsacademyaddons.feature.drifloot.DriflootDetector;
@@ -34,6 +35,7 @@ import com.siguha.sigsacademyaddons.hud.DaycareHudRenderer;
 import com.siguha.sigsacademyaddons.hud.HudGroupRenderer;
 import com.siguha.sigsacademyaddons.hud.PortalBossBarRenderer;
 import com.siguha.sigsacademyaddons.hud.SafariHudRenderer;
+import com.siguha.sigsacademyaddons.hud.CardStatsHudRenderer;
 import com.siguha.sigsacademyaddons.hud.WondertradeHudRenderer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
@@ -76,6 +78,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
     private static SuppressionManager suppressionManager;
     private static DungeonManager dungeonManager;
     private static CardAlbumQuickOpen cardAlbumQuickOpen;
+    private static CardStatsManager cardStatsManager;
     private static HudConfig hudConfig;
 
     private static boolean openConfigScreenNextTick = false;
@@ -109,6 +112,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
 
         dungeonManager = new DungeonManager();
         cardAlbumQuickOpen = new CardAlbumQuickOpen();
+        cardStatsManager = new CardStatsManager();
 
         KeyMapping cardAlbumKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.sigsacademyaddons.card_album",
@@ -123,6 +127,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
         SafariHudRenderer hudRenderer = new SafariHudRenderer(safariManager, safariHuntManager, hudConfig);
         DaycareHudRenderer daycareHudRenderer = new DaycareHudRenderer(daycareManager, hudConfig);
         WondertradeHudRenderer wtHudRenderer = new WondertradeHudRenderer(wondertradeManager, hudConfig);
+        CardStatsHudRenderer cardStatsHudRenderer = new CardStatsHudRenderer(cardStatsManager, hudConfig);
         PortalBossBarRenderer portalBossBarRenderer = new PortalBossBarRenderer(portalManager, suppressionManager);
 
         ClientReceiveMessageEvents.MODIFY_GAME.register(chatHandler::modifyGameMessage);
@@ -150,6 +155,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
             gruntFinderTracker.tick();
             PortalParticleDetector.tick();
             ParticleCapture.tick();
+            cardStatsManager.tick();
 
             if (!glfwFilterReinstalled) {
                 glfwFilterReinstalled = true;
@@ -170,7 +176,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
             if (openConfigScreenNextTick && client.player != null) {
                 openConfigScreenNextTick = false;
                 client.setScreen(new HudConfigScreen(hudConfig, safariManager, safariHuntManager,
-                        daycareManager, wondertradeManager));
+                        daycareManager, wondertradeManager, cardStatsManager));
             }
         });
 
@@ -178,6 +184,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
         groupRenderer.registerPanel(hudRenderer);
         groupRenderer.registerPanel(daycareHudRenderer);
         groupRenderer.registerPanel(wtHudRenderer);
+        groupRenderer.registerPanel(cardStatsHudRenderer);
         HudRenderCallback.EVENT.register(groupRenderer::onHudRender);
         HudRenderCallback.EVENT.register(portalBossBarRenderer::onHudRender);
 
@@ -286,6 +293,9 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             hudConfig.setWtScale(1.0f);
                                             hudConfig.setWtPositionFromAbsolute(
                                                     sw - 145, sh - 80, 140, 70, sw, sh);
+                                            hudConfig.setCardStatsScale(1.0f);
+                                            hudConfig.setCardStatsPositionFromAbsolute(
+                                                    5, sh - 100, 120, 80, sw, sh);
                                             hudConfig.setJoinedGroup(Collections.emptyList());
                                             context.getSource().sendFeedback(
                                                     Component.literal("\u00A7aAll HUD positions and scales reset to default."));
@@ -973,6 +983,34 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             return 1;
                                         })
                                 )
+                                .then(ClientCommandManager.literal("cardstats")
+                                        .then(ClientCommandManager.literal("menuEnabled")
+                                                .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                                        .executes(context -> {
+                                                            boolean value = BoolArgumentType.getBool(context, "value");
+                                                            hudConfig.setCardStatsMenuEnabled(value);
+                                                            String msg = value
+                                                                    ? "\u00A7aCard Stats HUD enabled."
+                                                                    : "\u00A7aCard Stats HUD disabled.";
+                                                            context.getSource().sendFeedback(Component.literal(msg));
+                                                            return 1;
+                                                        })
+                                                )
+                                                .executes(context -> {
+                                                    boolean current = hudConfig.isCardStatsMenuEnabled();
+                                                    context.getSource().sendFeedback(Component.literal(
+                                                            "\u00A77menuEnabled = \u00A7f" + current +
+                                                            "\n\u00A77Usage: \u00A7e/saa config cardstats menuEnabled <true|false>"));
+                                                    return 1;
+                                                })
+                                        )
+                                        .executes(context -> {
+                                            context.getSource().sendFeedback(Component.literal(
+                                                    "\u00A76Card Stats Config:\n" +
+                                                    "\u00A77menuEnabled = \u00A7f" + hudConfig.isCardStatsMenuEnabled()));
+                                            return 1;
+                                        })
+                                )
                                 .executes(context -> {
                                     context.getSource().sendFeedback(Component.literal(
                                             "\u00A76Configuration:" +
@@ -997,6 +1035,8 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             "\n\u00A77menuEnabled = \u00A7f" + hudConfig.isWtMenuEnabled() +
                                             "\n\u00A77showChatReminders = \u00A7f" + hudConfig.isWtShowChatReminders() +
                                             "\n\u00A77soundsEnabled = \u00A7f" + hudConfig.isWtSoundsEnabled() +
+                                            "\n\n\u00A7e[Card Stats] \u00A77(/saa config cardstats)" +
+                                            "\n\u00A77menuEnabled = \u00A7f" + hudConfig.isCardStatsMenuEnabled() +
                                             "\n\n\u00A7e[Suppress] \u00A77(/saa config suppress)" +
                                             "\n\u00A77inRaids = \u00A7f" + hudConfig.isSuppressInRaids() +
                                             "\n\u00A77inHideouts = \u00A7f" + hudConfig.isSuppressInHideouts() +
@@ -1005,7 +1045,8 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             "\n\n\u00A7e[Scales] \u00A77(use /saa gui to adjust)" +
                                             "\n\u00A77safariScale = \u00A7f" + String.format("%.0f%%", hudConfig.getHudScale() * 100) +
                                             "\n\u00A77daycareScale = \u00A7f" + String.format("%.0f%%", hudConfig.getDaycareScale() * 100) +
-                                            "\n\u00A77wtScale = \u00A7f" + String.format("%.0f%%", hudConfig.getWtScale() * 100)
+                                            "\n\u00A77wtScale = \u00A7f" + String.format("%.0f%%", hudConfig.getWtScale() * 100) +
+                                            "\n\u00A77cardStatsScale = \u00A7f" + String.format("%.0f%%", hudConfig.getCardStatsScale() * 100)
                                     ));
                                     return 1;
                                 })
@@ -1146,7 +1187,8 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                     "\u00A7e/saa config safari\u00A77 — Safari config (menuEnabled, timerAlways, questMonGlow)\n" +
                                     "\u00A7e/saa config daycare\u00A77 — Daycare config (menuEnabled, soundsEnabled, eggsHatchingSlots, babyGuards)\n" +
                                     "\u00A7e/saa config wt\u00A77 — Wondertrade config (menuEnabled, showChatReminders, soundsEnabled)\n" +
-                                    "\u00A7e/saa config suppress\u00A77 — Suppress config (inRaids, inHideouts, inDungeons, inBattles)"
+                                    "\u00A7e/saa config suppress\u00A77 — Suppress config (inRaids, inHideouts, inDungeons, inBattles)\n" +
+                                    "\u00A7e/saa config cardstats\u00A77 — Card Stats config (menuEnabled)"
                             ));
                             return 1;
                         })

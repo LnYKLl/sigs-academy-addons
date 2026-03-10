@@ -88,6 +88,13 @@ public class HudConfig {
     private boolean messageNotificationSound = true;
     private boolean hasSeenWelcome = false;
 
+    private boolean cardStatsMenuEnabled = true;
+    private Anchor cardStatsAnchor = Anchor.BOTTOM_LEFT;
+    private int cardStatsOffsetX = 5;
+    private int cardStatsOffsetY = 130;
+    private int cardStatsRefScreenWidth = 0;
+    private float cardStatsScale = 1.0f;
+
     public HudConfig() {
         load();
     }
@@ -542,6 +549,76 @@ public class HudConfig {
         save();
     }
 
+    public boolean isCardStatsMenuEnabled() { return cardStatsMenuEnabled; }
+
+    public void setCardStatsMenuEnabled(boolean cardStatsMenuEnabled) {
+        this.cardStatsMenuEnabled = cardStatsMenuEnabled;
+        save();
+    }
+
+    public Anchor getCardStatsAnchor() { return cardStatsAnchor; }
+
+    public int getCardStatsPanelX(int screenWidth, int panelWidth) {
+        if (cardStatsRefScreenWidth > 0) {
+            int refPanelX = switch (cardStatsAnchor) {
+                case TOP_LEFT, BOTTOM_LEFT -> cardStatsOffsetX;
+                case TOP_RIGHT, BOTTOM_RIGHT -> cardStatsRefScreenWidth - panelWidth - cardStatsOffsetX;
+            };
+            return (screenWidth - cardStatsRefScreenWidth) / 2 + refPanelX;
+        }
+        return switch (cardStatsAnchor) {
+            case TOP_LEFT, BOTTOM_LEFT -> cardStatsOffsetX;
+            case TOP_RIGHT, BOTTOM_RIGHT -> screenWidth - panelWidth - cardStatsOffsetX;
+        };
+    }
+
+    public int getCardStatsPanelY(int screenHeight, int panelHeight) {
+        return switch (cardStatsAnchor) {
+            case TOP_LEFT, TOP_RIGHT -> cardStatsOffsetY;
+            case BOTTOM_LEFT, BOTTOM_RIGHT -> screenHeight - cardStatsOffsetY;
+        };
+    }
+
+    public float getCardStatsScale() { return cardStatsScale; }
+
+    public void setCardStatsScale(float cardStatsScale) {
+        this.cardStatsScale = Math.max(0.5f, Math.min(2.0f, cardStatsScale));
+        save();
+    }
+
+    public void setCardStatsPositionFromAbsolute(int panelX, int panelY, int panelWidth, int panelHeight,
+                                                   int screenWidth, int screenHeight) {
+        int centerX = panelX + panelWidth / 2;
+        int centerY = panelY + panelHeight / 2;
+
+        boolean leftHalf = centerX < screenWidth / 2;
+        boolean topHalf = centerY < screenHeight / 2;
+
+        if (topHalf && leftHalf) {
+            cardStatsAnchor = Anchor.TOP_LEFT;
+            cardStatsOffsetX = panelX;
+            cardStatsOffsetY = panelY;
+        } else if (topHalf) {
+            cardStatsAnchor = Anchor.TOP_RIGHT;
+            cardStatsOffsetX = screenWidth - panelX - panelWidth;
+            cardStatsOffsetY = panelY;
+        } else if (leftHalf) {
+            cardStatsAnchor = Anchor.BOTTOM_LEFT;
+            cardStatsOffsetX = panelX;
+            cardStatsOffsetY = screenHeight - panelY;
+        } else {
+            cardStatsAnchor = Anchor.BOTTOM_RIGHT;
+            cardStatsOffsetX = screenWidth - panelX - panelWidth;
+            cardStatsOffsetY = screenHeight - panelY;
+        }
+
+        cardStatsOffsetX = Math.max(0, cardStatsOffsetX);
+        cardStatsOffsetY = Math.max(0, cardStatsOffsetY);
+        this.cardStatsRefScreenWidth = screenWidth;
+
+        save();
+    }
+
     public void setGroupPositionFromAbsolute(int panelX, int panelY, int panelWidth, int panelHeight,
                                               int screenWidth, int screenHeight) {
         int centerY = panelY + panelHeight / 2;
@@ -588,7 +665,10 @@ public class HudConfig {
                     suppressInRaids, suppressInHideouts, suppressInDungeons,
                     suppressInBattles, hudHidden,
                     daycareIvPercentLower, daycareIvPercentUpper,
-                    hasSeenWelcome, messageNotificationSound);
+                    hasSeenWelcome, messageNotificationSound,
+                    cardStatsMenuEnabled,
+                    cardStatsAnchor.name(), cardStatsOffsetX, cardStatsOffsetY,
+                    cardStatsScale, cardStatsRefScreenWidth);
             try (Writer writer = Files.newBufferedWriter(filePath)) {
                 GSON.toJson(data, writer);
             }
@@ -660,6 +740,13 @@ public class HudConfig {
                             ? Math.max(0, Math.min(100, data.daycareIvPercentUpper)) : 80;
                     this.hasSeenWelcome = data.hasSeenWelcome != null ? data.hasSeenWelcome : false;
                     this.messageNotificationSound = data.messageNotificationSound != null ? data.messageNotificationSound : true;
+
+                    this.cardStatsMenuEnabled = data.cardStatsMenuEnabled != null ? data.cardStatsMenuEnabled : true;
+                    this.cardStatsAnchor = data.cardStatsAnchor != null ? Anchor.valueOf(data.cardStatsAnchor) : Anchor.BOTTOM_LEFT;
+                    this.cardStatsOffsetX = data.cardStatsOffsetX != null ? data.cardStatsOffsetX : 5;
+                    this.cardStatsOffsetY = data.cardStatsOffsetY != null ? data.cardStatsOffsetY : 130;
+                    this.cardStatsScale = data.cardStatsScale != null && data.cardStatsScale > 0 ? data.cardStatsScale : 1.0f;
+                    this.cardStatsRefScreenWidth = data.cardStatsRefScreenWidth != null ? data.cardStatsRefScreenWidth : 0;
                 }
             }
         } catch (Exception e) {
@@ -691,6 +778,9 @@ public class HudConfig {
             Boolean suppressInRaids, Boolean suppressInHideouts, Boolean suppressInDungeons,
             Boolean suppressInBattles, Boolean hudHidden,
             Integer daycareIvPercentLower, Integer daycareIvPercentUpper,
-            Boolean hasSeenWelcome, Boolean messageNotificationSound) {
+            Boolean hasSeenWelcome, Boolean messageNotificationSound,
+            Boolean cardStatsMenuEnabled,
+            String cardStatsAnchor, Integer cardStatsOffsetX, Integer cardStatsOffsetY,
+            Float cardStatsScale, Integer cardStatsRefScreenWidth) {
     }
 }

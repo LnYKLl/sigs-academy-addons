@@ -1,6 +1,7 @@
 package com.siguha.sigsacademyaddons.gui;
 
 import com.siguha.sigsacademyaddons.config.HudConfig;
+import com.siguha.sigsacademyaddons.feature.cardstats.CardStatsManager;
 import com.siguha.sigsacademyaddons.feature.daycare.DaycareManager;
 import com.siguha.sigsacademyaddons.feature.daycare.DaycareState;
 import com.siguha.sigsacademyaddons.feature.safari.HuntEntityTracker;
@@ -52,6 +53,7 @@ public class HudConfigScreen extends Screen {
     private static final String NO_QUESTS_MESSAGE = "Please visit the Safari Hunt NPC and load your hunt menu.";
 
     private static final int COLOR_OUTLINE_WT = 0xFF55FF55;
+    private static final int COLOR_OUTLINE_CARDSTATS = 0xFFFFCC00;
     private static final int COLOR_JOIN_HIGHLIGHT = 0x4455FF55;
     private static final int COLOR_UNJOIN_X = 0xFFFF5555;
     private static final int COLOR_OUTLINE_GROUP = 0xFFFFAA00;
@@ -68,6 +70,7 @@ public class HudConfigScreen extends Screen {
     private final SafariHuntManager safariHuntManager;
     private final DaycareManager daycareManager;
     private final WondertradeManager wondertradeManager;
+    private final CardStatsManager cardStatsManager;
 
     static class PanelState {
         String panelId;
@@ -111,6 +114,7 @@ public class HudConfigScreen extends Screen {
     private PanelState safariPanel;
     private PanelState daycarePanel;
     private PanelState wtPanel;
+    private PanelState cardStatsPanel;
     private GroupState groupState;
 
     private enum DragMode { NONE, MOVE, RESIZE }
@@ -133,13 +137,14 @@ public class HudConfigScreen extends Screen {
 
     public HudConfigScreen(HudConfig hudConfig, SafariManager safariManager,
                             SafariHuntManager safariHuntManager, DaycareManager daycareManager,
-                            WondertradeManager wondertradeManager) {
+                            WondertradeManager wondertradeManager, CardStatsManager cardStatsManager) {
         super(Component.literal("HUD Position"));
         this.hudConfig = hudConfig;
         this.safariManager = safariManager;
         this.safariHuntManager = safariHuntManager;
         this.daycareManager = daycareManager;
         this.wondertradeManager = wondertradeManager;
+        this.cardStatsManager = cardStatsManager;
     }
 
     @Override
@@ -150,7 +155,7 @@ public class HudConfigScreen extends Screen {
             int deltaX = (this.width - previousWidth) / 2;
             int deltaY = (this.height - previousHeight) / 2;
 
-            for (PanelState panel : new PanelState[]{safariPanel, daycarePanel, wtPanel}) {
+            for (PanelState panel : new PanelState[]{safariPanel, daycarePanel, wtPanel, cardStatsPanel}) {
                 if (!isInGroup(panel)) {
                     panel.panelX = Math.clamp(panel.panelX + deltaX, 0,
                             Math.max(0, this.width - panel.scaledWidth));
@@ -201,6 +206,14 @@ public class HudConfigScreen extends Screen {
         wtPanel.panelX = hudConfig.getWtPanelX(this.width, wtPanel.scaledWidth);
         wtPanel.panelY = hudConfig.getWtPanelY(this.height, wtPanel.scaledHeight);
 
+        cardStatsPanel = new PanelState("cardstats", "Card Stats");
+        cardStatsPanel.unscaledWidth = compact ? calculateCompactCardStatsWidth() : calculateCardStatsWidth();
+        cardStatsPanel.unscaledHeight = compact ? calculateCompactCardStatsHeight() : calculateCardStatsHeight();
+        cardStatsPanel.currentScale = hudConfig.getCardStatsScale();
+        cardStatsPanel.updateScaledDimensions();
+        cardStatsPanel.panelX = hudConfig.getCardStatsPanelX(this.width, cardStatsPanel.scaledWidth);
+        cardStatsPanel.panelY = hudConfig.getCardStatsPanelY(this.height, cardStatsPanel.scaledHeight);
+
         groupState = null;
         List<String> groupOrder = hudConfig.getJoinedGroup();
         if (groupOrder.size() >= 2) {
@@ -248,6 +261,9 @@ public class HudConfigScreen extends Screen {
         }
         if (!isInGroup(wtPanel)) {
             renderPanel(graphics, wtPanel, mouseX, mouseY, COLOR_OUTLINE_WT);
+        }
+        if (!isInGroup(cardStatsPanel)) {
+            renderPanel(graphics, cardStatsPanel, mouseX, mouseY, COLOR_OUTLINE_CARDSTATS);
         }
 
         if (groupState != null && groupState.members.size() >= 2) {
@@ -337,6 +353,8 @@ public class HudConfigScreen extends Screen {
             renderDaycarePreview(graphics, panel);
         } else if (panel == wtPanel) {
             renderWtPreview(graphics, panel);
+        } else if (panel == cardStatsPanel) {
+            renderCardStatsPreview(graphics, panel);
         }
 
         graphics.pose().popPose();
@@ -467,6 +485,9 @@ public class HudConfigScreen extends Screen {
         } else if (panel == wtPanel) {
             if (hudConfig.isCompact()) renderCompactWtPreview(graphics, panel);
             else renderFullWtPreview(graphics, panel);
+        } else if (panel == cardStatsPanel) {
+            if (hudConfig.isCompact()) renderCompactCardStatsPreview(graphics, panel);
+            else renderFullCardStatsPreview(graphics, panel);
         }
     }
 
@@ -1245,6 +1266,12 @@ public class HudConfigScreen extends Screen {
                     wtPanel.scaledWidth, wtPanel.scaledHeight, this.width, this.height);
         }
 
+        if (!isInGroup(cardStatsPanel)) {
+            hudConfig.setCardStatsScale(cardStatsPanel.currentScale);
+            hudConfig.setCardStatsPositionFromAbsolute(cardStatsPanel.panelX, cardStatsPanel.panelY,
+                    cardStatsPanel.scaledWidth, cardStatsPanel.scaledHeight, this.width, this.height);
+        }
+
         if (groupState != null && groupState.members.size() >= 2) {
             List<String> groupOrder = new ArrayList<>();
             for (PanelState member : groupState.members) {
@@ -1304,6 +1331,7 @@ public class HudConfigScreen extends Screen {
             case "safari" -> safariPanel;
             case "daycare" -> daycarePanel;
             case "wondertrade" -> wtPanel;
+            case "cardstats" -> cardStatsPanel;
             default -> null;
         };
     }
@@ -1313,6 +1341,7 @@ public class HudConfigScreen extends Screen {
         if (!isInGroup(safariPanel)) result.add(safariPanel);
         if (!isInGroup(daycarePanel)) result.add(daycarePanel);
         if (!isInGroup(wtPanel)) result.add(wtPanel);
+        if (!isInGroup(cardStatsPanel)) result.add(cardStatsPanel);
         return result.toArray(new PanelState[0]);
     }
 
@@ -1546,6 +1575,11 @@ public class HudConfigScreen extends Screen {
         wtPanel.updateScaledDimensions();
         wtPanel.panelX = this.width - wtPanel.scaledWidth - 5;
         wtPanel.panelY = this.height - wtPanel.scaledHeight - 5;
+
+        cardStatsPanel.currentScale = 1.0f;
+        cardStatsPanel.updateScaledDimensions();
+        cardStatsPanel.panelX = 5;
+        cardStatsPanel.panelY = this.height - cardStatsPanel.scaledHeight - 5;
     }
 
     private void resetScales() {
@@ -1554,12 +1588,151 @@ public class HudConfigScreen extends Screen {
             groupState.recalculate();
         }
 
-        for (PanelState panel : new PanelState[]{safariPanel, daycarePanel, wtPanel}) {
+        for (PanelState panel : new PanelState[]{safariPanel, daycarePanel, wtPanel, cardStatsPanel}) {
             if (!isInGroup(panel)) {
                 panel.currentScale = 1.0f;
                 panel.updateScaledDimensions();
             }
         }
+    }
+
+    private void renderCardStatsPreview(GuiGraphics graphics, PanelState panel) {
+        boolean transparent = hudConfig.getHudStyle() == HudConfig.HudStyle.TRANSPARENT;
+
+        if (!transparent) {
+            graphics.fill(0, 0, panel.unscaledWidth, panel.unscaledHeight, COLOR_BG);
+        }
+
+        if (hudConfig.isCompact()) {
+            renderCompactCardStatsPreview(graphics, panel);
+        } else {
+            renderFullCardStatsPreview(graphics, panel);
+        }
+    }
+
+    private void renderCompactCardStatsPreview(GuiGraphics graphics, PanelState panel) {
+        int y = PADDING;
+
+        String title = "Stats";
+        graphics.drawString(this.font, title, PADDING, y, COLOR_HEADER, true);
+        y += LINE_HEIGHT;
+
+        graphics.drawString(this.font, "Player", PADDING, y, COLOR_SECTION_HEADER, true);
+        y += LINE_HEIGHT;
+
+        String[][] playerStats = {
+                {"Movement Speed", "+13.6%"},
+                {"Block Reach", "+0.45"},
+                {"Armor", "+2%"},
+        };
+        for (String[] stat : playerStats) {
+            graphics.drawString(this.font, stat[0], PADDING + 2, y, COLOR_TEXT, true);
+            int valW = this.font.width(stat[1]);
+            graphics.drawString(this.font, stat[1], panel.unscaledWidth - PADDING - valW, y, 0xFF55FF55, true);
+            y += LINE_HEIGHT;
+        }
+
+        graphics.drawString(this.font, "Cards", PADDING, y, COLOR_SECTION_HEADER, true);
+        y += LINE_HEIGHT;
+
+        String[][] cardStats = {
+                {"Capture XP", "+5%"},
+                {"Shiny Chance", "+2%"},
+                {"Type Spawn Chance", "+3%"},
+        };
+        for (String[] stat : cardStats) {
+            graphics.drawString(this.font, stat[0], PADDING + 2, y, COLOR_TEXT, true);
+            int valW = this.font.width(stat[1]);
+            graphics.drawString(this.font, stat[1], panel.unscaledWidth - PADDING - valW, y, 0xFF55FF55, true);
+            y += LINE_HEIGHT;
+        }
+    }
+
+    private void renderFullCardStatsPreview(GuiGraphics graphics, PanelState panel) {
+        int y = PADDING;
+
+        String header = "SAA Stats";
+        int headerW = this.font.width(header);
+        graphics.drawString(this.font, header, (panel.unscaledWidth - headerW) / 2, y, COLOR_HEADER, true);
+        y += LINE_HEIGHT;
+
+        y += 2;
+        graphics.fill(PADDING, y, panel.unscaledWidth - PADDING, y + 1, 0xFF555555);
+        y += SECTION_SPACING;
+
+        graphics.drawString(this.font, "Player", PADDING, y, COLOR_SECTION_HEADER, true);
+        y += LINE_HEIGHT;
+
+        String[][] playerStats = {
+                {"Movement Speed", "+13.6%"},
+                {"Block Reach", "+0.45"},
+                {"Armor", "+2%"},
+        };
+        for (String[] stat : playerStats) {
+            graphics.drawString(this.font, stat[0], PADDING + 2, y, COLOR_TEXT, true);
+            int valW = this.font.width(stat[1]);
+            graphics.drawString(this.font, stat[1], panel.unscaledWidth - PADDING - valW, y, 0xFF55FF55, true);
+            y += LINE_HEIGHT;
+        }
+
+        y += 2;
+        graphics.fill(PADDING, y, panel.unscaledWidth - PADDING, y + 1, 0xFF555555);
+        y += SECTION_SPACING;
+
+        graphics.drawString(this.font, "Cards", PADDING, y, COLOR_SECTION_HEADER, true);
+        y += LINE_HEIGHT;
+
+        String[][] cardStats = {
+                {"Capture XP", "+5%"},
+                {"Shiny Chance", "+2%"},
+                {"Type Spawn Chance", "+3%"},
+        };
+        for (String[] stat : cardStats) {
+            graphics.drawString(this.font, stat[0], PADDING + 2, y, COLOR_TEXT, true);
+            int valW = this.font.width(stat[1]);
+            graphics.drawString(this.font, stat[1], panel.unscaledWidth - PADDING - valW, y, 0xFF55FF55, true);
+            y += LINE_HEIGHT;
+        }
+    }
+
+    private int calculateCardStatsWidth() {
+        int maxWidth = PANEL_MIN_WIDTH;
+        maxWidth = Math.max(maxWidth, this.font.width("SAA Stats") + PADDING * 2);
+        maxWidth = Math.max(maxWidth, this.font.width("Type Spawn Chance") + this.font.width("+3%") + PADDING * 2 + 8);
+        return maxWidth + PADDING * 2;
+    }
+
+    private int calculateCardStatsHeight() {
+        int height = PADDING;
+        height += LINE_HEIGHT;
+        height += 2 + SECTION_SPACING;
+        height += LINE_HEIGHT;
+        height += 3 * LINE_HEIGHT;
+        height += 2 + SECTION_SPACING;
+        height += LINE_HEIGHT;
+        height += 3 * LINE_HEIGHT;
+        height += PADDING;
+        return height;
+    }
+
+    private int calculateCompactCardStatsWidth() {
+        int maxWidth = PANEL_MIN_WIDTH;
+        maxWidth = Math.max(maxWidth, this.font.width("Stats") + PADDING * 2);
+        maxWidth = Math.max(maxWidth, this.font.width("Player") + PADDING * 2);
+        maxWidth = Math.max(maxWidth, this.font.width("Cards") + PADDING * 2);
+        maxWidth = Math.max(maxWidth, this.font.width("Type Spawn Chance") + this.font.width("+3%") + PADDING * 2 + 8);
+        return maxWidth + PADDING * 2;
+    }
+
+    private int calculateCompactCardStatsHeight() {
+        int height = PADDING;
+        height += LINE_HEIGHT;
+        height += LINE_HEIGHT;
+        height += 3 * LINE_HEIGHT;
+        height += LINE_HEIGHT;
+        height += 3 * LINE_HEIGHT;
+        height += PADDING;
+        return height;
     }
 
     private void drawResizeIcon(GuiGraphics graphics, int x, int y, int color) {

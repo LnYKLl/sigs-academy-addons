@@ -49,6 +49,8 @@ import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import com.siguha.sigsacademyaddons.mixin.ContainerScreenAccessor;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.KeyMapping;
@@ -133,6 +135,14 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
         ClientReceiveMessageEvents.MODIFY_GAME.register(chatHandler::modifyGameMessage);
         ClientReceiveMessageEvents.GAME.register(chatHandler::onGameMessage);
         ScreenEvents.AFTER_INIT.register(screenInterceptor::onScreenInit);
+        ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
+            if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) return;
+            ScreenEvents.afterRender(screen).register((renderedScreen, graphics, mouseX, mouseY, tickDelta) -> {
+                ContainerScreenAccessor accessor = (ContainerScreenAccessor) containerScreen;
+                cardStatsHudRenderer.renderInInventory(graphics,
+                        accessor.getLeftPos(), accessor.getTopPos(), accessor.getImageHeight());
+            });
+        });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (cardAlbumKey.consumeClick()) {
@@ -983,15 +993,15 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             return 1;
                                         })
                                 )
-                                .then(ClientCommandManager.literal("cardstats")
+                                .then(ClientCommandManager.literal("stats")
                                         .then(ClientCommandManager.literal("menuEnabled")
                                                 .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
                                                         .executes(context -> {
                                                             boolean value = BoolArgumentType.getBool(context, "value");
                                                             hudConfig.setCardStatsMenuEnabled(value);
                                                             String msg = value
-                                                                    ? "\u00A7aCard Stats HUD enabled."
-                                                                    : "\u00A7aCard Stats HUD disabled.";
+                                                                    ? "\u00A7aStats menu enabled."
+                                                                    : "\u00A7aStats menu disabled.";
                                                             context.getSource().sendFeedback(Component.literal(msg));
                                                             return 1;
                                                         })
@@ -1000,14 +1010,56 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                                     boolean current = hudConfig.isCardStatsMenuEnabled();
                                                     context.getSource().sendFeedback(Component.literal(
                                                             "\u00A77menuEnabled = \u00A7f" + current +
-                                                            "\n\u00A77Usage: \u00A7e/saa config cardstats menuEnabled <true|false>"));
+                                                            "\n\u00A77Usage: \u00A7e/saa config stats menuEnabled <true|false>"));
+                                                    return 1;
+                                                })
+                                        )
+                                        .then(ClientCommandManager.literal("displayAlways")
+                                                .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                                        .executes(context -> {
+                                                            boolean value = BoolArgumentType.getBool(context, "value");
+                                                            hudConfig.setCardStatsDisplayAlways(value);
+                                                            String msg = value
+                                                                    ? "\u00A7aStats will always display on HUD."
+                                                                    : "\u00A7aStats will not display on HUD.";
+                                                            context.getSource().sendFeedback(Component.literal(msg));
+                                                            return 1;
+                                                        })
+                                                )
+                                                .executes(context -> {
+                                                    boolean current = hudConfig.isCardStatsDisplayAlways();
+                                                    context.getSource().sendFeedback(Component.literal(
+                                                            "\u00A77displayAlways = \u00A7f" + current +
+                                                            "\n\u00A77Usage: \u00A7e/saa config stats displayAlways <true|false>"));
+                                                    return 1;
+                                                })
+                                        )
+                                        .then(ClientCommandManager.literal("displayInInventory")
+                                                .then(ClientCommandManager.argument("value", BoolArgumentType.bool())
+                                                        .executes(context -> {
+                                                            boolean value = BoolArgumentType.getBool(context, "value");
+                                                            hudConfig.setCardStatsDisplayInInventory(value);
+                                                            String msg = value
+                                                                    ? "\u00A7aStats will display in inventory."
+                                                                    : "\u00A7aStats will not display in inventory.";
+                                                            context.getSource().sendFeedback(Component.literal(msg));
+                                                            return 1;
+                                                        })
+                                                )
+                                                .executes(context -> {
+                                                    boolean current = hudConfig.isCardStatsDisplayInInventory();
+                                                    context.getSource().sendFeedback(Component.literal(
+                                                            "\u00A77displayInInventory = \u00A7f" + current +
+                                                            "\n\u00A77Usage: \u00A7e/saa config stats displayInInventory <true|false>"));
                                                     return 1;
                                                 })
                                         )
                                         .executes(context -> {
                                             context.getSource().sendFeedback(Component.literal(
-                                                    "\u00A76Card Stats Config:\n" +
-                                                    "\u00A77menuEnabled = \u00A7f" + hudConfig.isCardStatsMenuEnabled()));
+                                                    "\u00A76Stats Config:\n" +
+                                                    "\u00A77menuEnabled = \u00A7f" + hudConfig.isCardStatsMenuEnabled() +
+                                                    "\n\u00A77displayAlways = \u00A7f" + hudConfig.isCardStatsDisplayAlways() +
+                                                    "\n\u00A77displayInInventory = \u00A7f" + hudConfig.isCardStatsDisplayInInventory()));
                                             return 1;
                                         })
                                 )
@@ -1035,8 +1087,10 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             "\n\u00A77menuEnabled = \u00A7f" + hudConfig.isWtMenuEnabled() +
                                             "\n\u00A77showChatReminders = \u00A7f" + hudConfig.isWtShowChatReminders() +
                                             "\n\u00A77soundsEnabled = \u00A7f" + hudConfig.isWtSoundsEnabled() +
-                                            "\n\n\u00A7e[Card Stats] \u00A77(/saa config cardstats)" +
+                                            "\n\n\u00A7e[Stats] \u00A77(/saa config stats)" +
                                             "\n\u00A77menuEnabled = \u00A7f" + hudConfig.isCardStatsMenuEnabled() +
+                                            "\n\u00A77displayAlways = \u00A7f" + hudConfig.isCardStatsDisplayAlways() +
+                                            "\n\u00A77displayInInventory = \u00A7f" + hudConfig.isCardStatsDisplayInInventory() +
                                             "\n\n\u00A7e[Suppress] \u00A77(/saa config suppress)" +
                                             "\n\u00A77inRaids = \u00A7f" + hudConfig.isSuppressInRaids() +
                                             "\n\u00A77inHideouts = \u00A7f" + hudConfig.isSuppressInHideouts() +

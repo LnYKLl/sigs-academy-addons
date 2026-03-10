@@ -89,6 +89,8 @@ public class HudConfig {
     private boolean hasSeenWelcome = false;
 
     private boolean cardStatsMenuEnabled = true;
+    private boolean cardStatsDisplayAlways = false;
+    private boolean cardStatsDisplayInInventory = true;
     private Anchor cardStatsAnchor = Anchor.BOTTOM_LEFT;
     private int cardStatsOffsetX = 5;
     private int cardStatsOffsetY = 130;
@@ -556,6 +558,20 @@ public class HudConfig {
         save();
     }
 
+    public boolean isCardStatsDisplayAlways() { return cardStatsDisplayAlways; }
+
+    public void setCardStatsDisplayAlways(boolean cardStatsDisplayAlways) {
+        this.cardStatsDisplayAlways = cardStatsDisplayAlways;
+        save();
+    }
+
+    public boolean isCardStatsDisplayInInventory() { return cardStatsDisplayInInventory; }
+
+    public void setCardStatsDisplayInInventory(boolean cardStatsDisplayInInventory) {
+        this.cardStatsDisplayInInventory = cardStatsDisplayInInventory;
+        save();
+    }
+
     public Anchor getCardStatsAnchor() { return cardStatsAnchor; }
 
     public int getCardStatsPanelX(int screenWidth, int panelWidth) {
@@ -666,7 +682,7 @@ public class HudConfig {
                     suppressInBattles, hudHidden,
                     daycareIvPercentLower, daycareIvPercentUpper,
                     hasSeenWelcome, messageNotificationSound,
-                    cardStatsMenuEnabled,
+                    cardStatsMenuEnabled, cardStatsDisplayAlways, cardStatsDisplayInInventory,
                     cardStatsAnchor.name(), cardStatsOffsetX, cardStatsOffsetY,
                     cardStatsScale, cardStatsRefScreenWidth);
             try (Writer writer = Files.newBufferedWriter(filePath)) {
@@ -742,6 +758,8 @@ public class HudConfig {
                     this.messageNotificationSound = data.messageNotificationSound != null ? data.messageNotificationSound : true;
 
                     this.cardStatsMenuEnabled = data.cardStatsMenuEnabled != null ? data.cardStatsMenuEnabled : true;
+                    this.cardStatsDisplayAlways = data.cardStatsDisplayAlways != null ? data.cardStatsDisplayAlways : false;
+                    this.cardStatsDisplayInInventory = data.cardStatsDisplayInInventory != null ? data.cardStatsDisplayInInventory : true;
                     this.cardStatsAnchor = data.cardStatsAnchor != null ? Anchor.valueOf(data.cardStatsAnchor) : Anchor.BOTTOM_LEFT;
                     this.cardStatsOffsetX = data.cardStatsOffsetX != null ? data.cardStatsOffsetX : 5;
                     this.cardStatsOffsetY = data.cardStatsOffsetY != null ? data.cardStatsOffsetY : 130;
@@ -779,7 +797,7 @@ public class HudConfig {
             Boolean suppressInBattles, Boolean hudHidden,
             Integer daycareIvPercentLower, Integer daycareIvPercentUpper,
             Boolean hasSeenWelcome, Boolean messageNotificationSound,
-            Boolean cardStatsMenuEnabled,
+            Boolean cardStatsMenuEnabled, Boolean cardStatsDisplayAlways, Boolean cardStatsDisplayInInventory,
             String cardStatsAnchor, Integer cardStatsOffsetX, Integer cardStatsOffsetY,
             Float cardStatsScale, Integer cardStatsRefScreenWidth) {
     }

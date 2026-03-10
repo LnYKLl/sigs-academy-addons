@@ -46,7 +46,15 @@ public class CardStatsHudRenderer implements HudPanel {
 
     @Override
     public boolean hasVisibleContent() {
-        return shouldRender();
+        return shouldRender() && hudConfig.isCardStatsDisplayAlways();
+    }
+
+    public boolean canRenderInInventory() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) return false;
+        if (!hudConfig.isCardStatsMenuEnabled()) return false;
+        if (!hudConfig.isCardStatsDisplayInInventory()) return false;
+        return cardStatsManager.hasCardAlbum() && cardStatsManager.hasAnyStats();
     }
 
     @Override
@@ -77,6 +85,7 @@ public class CardStatsHudRenderer implements HudPanel {
     @Override
     public void onHudRender(GuiGraphics graphics, DeltaTracker deltaTracker) {
         if (!shouldRender()) return;
+        if (!hudConfig.isCardStatsDisplayAlways()) return;
         if (hudConfig.isInGroup("cardstats")) return;
 
         Minecraft client = Minecraft.getInstance();
@@ -277,5 +286,29 @@ public class CardStatsHudRenderer implements HudPanel {
         }
         height += PADDING;
         return height;
+    }
+
+    public void renderInInventory(GuiGraphics graphics, int invLeftPos, int invTopPos, int invImageHeight) {
+        if (!canRenderInInventory()) return;
+
+        Minecraft client = Minecraft.getInstance();
+        Font font = client.font;
+
+        int panelWidth = getContentWidth(font);
+        int panelHeight = getContentHeight(font);
+
+        int gap = 4;
+        int panelX = invLeftPos - panelWidth - gap;
+        int panelY = invTopPos + (invImageHeight - panelHeight) / 2;
+
+        panelX = Math.max(0, panelX);
+        panelY = Math.max(0, panelY);
+
+        graphics.pose().pushPose();
+        graphics.pose().translate(panelX, panelY, 0);
+
+        renderContent(graphics, font, panelWidth);
+
+        graphics.pose().popPose();
     }
 }

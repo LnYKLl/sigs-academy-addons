@@ -8,6 +8,7 @@ import com.siguha.sigsacademyaddons.config.HudConfig;
 import com.siguha.sigsacademyaddons.data.DaycareDataStore;
 import com.siguha.sigsacademyaddons.data.HuntDataStore;
 import com.siguha.sigsacademyaddons.data.WondertradeDataStore;
+import com.siguha.sigsacademyaddons.feature.cardalbum.CardAlbumQuickOpen;
 import com.siguha.sigsacademyaddons.feature.daycare.DaycareManager;
 import com.siguha.sigsacademyaddons.feature.daycare.DaycareSoundPlayer;
 import com.siguha.sigsacademyaddons.feature.drifloot.DriflootDetector;
@@ -39,13 +40,16 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -71,6 +75,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
     private static GruntFinderTracker gruntFinderTracker;
     private static SuppressionManager suppressionManager;
     private static DungeonManager dungeonManager;
+    private static CardAlbumQuickOpen cardAlbumQuickOpen;
     private static HudConfig hudConfig;
 
     private static boolean openConfigScreenNextTick = false;
@@ -103,6 +108,13 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
         suppressionManager = new SuppressionManager(hudConfig);
 
         dungeonManager = new DungeonManager();
+        cardAlbumQuickOpen = new CardAlbumQuickOpen();
+
+        KeyMapping cardAlbumKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+                "key.sigsacademyaddons.card_album",
+                InputConstants.Type.KEYSYM,
+                GLFW.GLFW_KEY_G,
+                "Sigs Academy Addons"));
 
         ChatMessageHandler chatHandler = new ChatMessageHandler(safariManager, safariHuntManager,
                 catchDetector, daycareManager, wondertradeManager, portalManager, hudConfig);
@@ -118,6 +130,11 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
         ScreenEvents.AFTER_INIT.register(screenInterceptor::onScreenInit);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            while (cardAlbumKey.consumeClick()) {
+                cardAlbumQuickOpen.start();
+            }
+            cardAlbumQuickOpen.tick();
+
             suppressionManager.tick();
             safariManager.tick();
             safariHuntManager.tick();

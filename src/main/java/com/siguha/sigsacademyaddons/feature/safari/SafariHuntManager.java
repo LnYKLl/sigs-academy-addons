@@ -4,6 +4,10 @@ import com.siguha.sigsacademyaddons.SigsAcademyAddons;
 import com.siguha.sigsacademyaddons.data.HuntDataStore;
 import com.siguha.sigsacademyaddons.handler.CatchDetector;
 import com.siguha.sigsacademyaddons.handler.ScreenInterceptor;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -18,6 +22,7 @@ public class SafariHuntManager {
     private static final Pattern RESET_PATTERN = Pattern.compile("Resets in (.+)");
     private static final Pattern TIME_PARTS_PATTERN = Pattern.compile("(\\d+)h\\s*(\\d+)m\\s*(\\d+)s");
     private static final Pattern STAR_PATTERN = Pattern.compile("[\\u2B50\\u2605\\u2606*]+");
+    private static final long TEN_MINUTES_MS = 10 * 60 * 1000L;
 
     private final HuntDataStore dataStore;
     private List<SafariHuntData> activeHunts;
@@ -26,6 +31,7 @@ public class SafariHuntManager {
     private int pendingUpdates = 0;
 
     private int expirationCheckCooldown = 0;
+    private boolean tenMinuteWarningSent = false;
 
     public SafariHuntManager(HuntDataStore dataStore) {
         this.dataStore = dataStore;
@@ -46,12 +52,36 @@ public class SafariHuntManager {
         if (expirationCheckCooldown > 0) return;
         expirationCheckCooldown = 100;
 
+        if (!tenMinuteWarningSent) {
+            for (SafariHuntData hunt : activeHunts) {
+                long remaining = hunt.getResetRemainingMs();
+                if (remaining > 0 && remaining <= TEN_MINUTES_MS) {
+                    tenMinuteWarningSent = true;
+                    sendNotification("There is 10 minutes left until Safari quest hunts reset!");
+                    break;
+                }
+            }
+        }
+
         int before = activeHunts.size();
         activeHunts.removeIf(SafariHuntData::isResetExpired);
 
         if (activeHunts.size() < before) {
             cachedSortedHunts = null;
             dataStore.save(activeHunts);
+
+            if (activeHunts.isEmpty()) {
+                tenMinuteWarningSent = false;
+                sendNotification("Safari quest hunts reset!");
+            }
+        }
+    }
+
+    private void sendNotification(String message) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null) {
+            mc.player.sendSystemMessage(Component.literal(message).withStyle(ChatFormatting.YELLOW));
+            mc.player.playSound(SoundEvents.NOTE_BLOCK_BELL.value(), 0.8f, 1.0f);
         }
     }
 

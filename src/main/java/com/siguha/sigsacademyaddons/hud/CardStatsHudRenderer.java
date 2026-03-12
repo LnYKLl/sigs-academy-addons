@@ -74,6 +74,14 @@ public class CardStatsHudRenderer implements HudPanel {
     }
 
     @Override
+    public int getContentHeight(Font font, int panelWidth) {
+        if (hudConfig.isCompact()) {
+            return calculateCompactHeightForWidth(font, panelWidth);
+        }
+        return calculateFullHeightForWidth(font, panelWidth);
+    }
+
+    @Override
     public void renderContent(GuiGraphics graphics, Font font, int panelWidth) {
         if (hudConfig.isCompact()) {
             renderCompact(graphics, font, panelWidth);
@@ -101,8 +109,9 @@ public class CardStatsHudRenderer implements HudPanel {
 
         boolean transparent = hudConfig.getHudStyle() == HudConfig.HudStyle.TRANSPARENT;
 
-        int panelWidth = getContentWidth(font);
-        int panelHeight = getContentHeight(font);
+        int widthOvr = hudConfig.getCardStatsWidthOverride();
+        int panelWidth = widthOvr > 0 ? widthOvr : getContentWidth(font);
+        int panelHeight = getContentHeight(font, panelWidth);
 
         int scaledWidth = Math.round(panelWidth * scale);
         int scaledHeight = Math.round(panelHeight * scale);
@@ -127,9 +136,7 @@ public class CardStatsHudRenderer implements HudPanel {
         int y = PADDING;
 
         String header = "SAA Stats";
-        int headerWidth = font.width(header);
-        graphics.drawString(font, header, (panelWidth - headerWidth) / 2, y, COLOR_HEADER, true);
-        y += LINE_HEIGHT;
+        y = HudTextUtil.renderWrappedCentered(graphics, font, header, panelWidth, y, COLOR_HEADER, LINE_HEIGHT);
 
         List<StatEntry> playerStats = cardStatsManager.getPlayerStats();
         List<StatEntry> cardStatsList = cardStatsManager.getCardStats();
@@ -191,13 +198,11 @@ public class CardStatsHudRenderer implements HudPanel {
     }
 
     private int renderStatLine(GuiGraphics graphics, Font font, int y, int panelWidth, StatEntry entry) {
-        graphics.drawString(font, entry.displayName(), PADDING + 2, y, COLOR_STAT_NAME, true);
-
         String valueStr = CardStatsManager.formatValue(entry);
-        int valueWidth = font.width(valueStr);
-        graphics.drawString(font, valueStr, panelWidth - PADDING - valueWidth, y, COLOR_STAT_VALUE, true);
-
-        return y + LINE_HEIGHT;
+        return HudTextUtil.renderStatLine(graphics, font,
+                entry.displayName(), valueStr,
+                COLOR_STAT_NAME, COLOR_STAT_VALUE,
+                y, panelWidth, PADDING, LINE_HEIGHT);
     }
 
     private int calculateFullWidth(Font font) {
@@ -283,6 +288,59 @@ public class CardStatsHudRenderer implements HudPanel {
         if (!cardStatsList.isEmpty()) {
             height += LINE_HEIGHT;
             height += cardStatsList.size() * LINE_HEIGHT;
+        }
+        height += PADDING;
+        return height;
+    }
+
+    private int calculateFullHeightForWidth(Font font, int panelWidth) {
+        List<StatEntry> playerStats = cardStatsManager.getPlayerStats();
+        List<StatEntry> cardStatsList = cardStatsManager.getCardStats();
+
+        int height = PADDING;
+        height += HudTextUtil.wrappedCenteredHeight(font, "SAA Stats", panelWidth, LINE_HEIGHT);
+
+        if (!playerStats.isEmpty()) {
+            height += 2 + SECTION_SPACING;
+            height += LINE_HEIGHT;
+            for (StatEntry entry : playerStats) {
+                height += HudTextUtil.statLineHeight(font, entry.displayName(),
+                        CardStatsManager.formatValue(entry), panelWidth, PADDING, LINE_HEIGHT);
+            }
+        }
+
+        if (!cardStatsList.isEmpty()) {
+            height += 2 + SECTION_SPACING;
+            height += LINE_HEIGHT;
+            for (StatEntry entry : cardStatsList) {
+                height += HudTextUtil.statLineHeight(font, entry.displayName(),
+                        CardStatsManager.formatValue(entry), panelWidth, PADDING, LINE_HEIGHT);
+            }
+        }
+
+        height += PADDING;
+        return height;
+    }
+
+    private int calculateCompactHeightForWidth(Font font, int panelWidth) {
+        List<StatEntry> playerStats = cardStatsManager.getPlayerStats();
+        List<StatEntry> cardStatsList = cardStatsManager.getCardStats();
+
+        int height = PADDING;
+        height += LINE_HEIGHT;
+        if (!playerStats.isEmpty()) {
+            height += LINE_HEIGHT;
+            for (StatEntry entry : playerStats) {
+                height += HudTextUtil.statLineHeight(font, entry.displayName(),
+                        CardStatsManager.formatValue(entry), panelWidth, PADDING, LINE_HEIGHT);
+            }
+        }
+        if (!cardStatsList.isEmpty()) {
+            height += LINE_HEIGHT;
+            for (StatEntry entry : cardStatsList) {
+                height += HudTextUtil.statLineHeight(font, entry.displayName(),
+                        CardStatsManager.formatValue(entry), panelWidth, PADDING, LINE_HEIGHT);
+            }
         }
         height += PADDING;
         return height;

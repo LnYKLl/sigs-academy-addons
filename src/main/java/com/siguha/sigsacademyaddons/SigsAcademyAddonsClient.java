@@ -380,30 +380,6 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                                 })
                                         )
                                 )
-                                .then(ClientCommandManager.literal("ivPercentPreference")
-                                        .then(ClientCommandManager.argument("lowerBound", IntegerArgumentType.integer(0, 100))
-                                                .then(ClientCommandManager.argument("upperBound", IntegerArgumentType.integer(0, 100))
-                                                        .executes(context -> {
-                                                            int lower = IntegerArgumentType.getInteger(context, "lowerBound");
-                                                            int upper = IntegerArgumentType.getInteger(context, "upperBound");
-                                                            hudConfig.setDaycareIvPercentLower(lower);
-                                                            hudConfig.setDaycareIvPercentUpper(upper);
-                                                            context.getSource().sendFeedback(Component.literal(
-                                                                    "\u00A7aIV% thresholds set to \u00A76" + lower
-                                                                    + "%\u00A7a (orange) / \u00A7b" + upper + "%\u00A7a (blue)."));
-                                                            return 1;
-                                                        })
-                                                )
-                                        )
-                                        .executes(context -> {
-                                            context.getSource().sendFeedback(Component.literal(
-                                                    "\u00A77IV% highlight thresholds:" +
-                                                    "\n\u00A76  Orange: \u00A7f" + hudConfig.getDaycareIvPercentLower() + "%+" +
-                                                    "\n\u00A7b  Blue: \u00A7f" + hudConfig.getDaycareIvPercentUpper() + "%+" +
-                                                    "\n\u00A77Usage: \u00A7e/saa daycare ivPercentPreference <lower> <upper>"));
-                                            return 1;
-                                        })
-                                )
                                 .executes(context -> {
                                     int unlockedPens = daycareManager.getDisplayPens().size();
                                     long breedingPens = daycareManager.getDisplayPens().stream()
@@ -672,13 +648,38 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                                     return 1;
                                                 })
                                         )
+                                        .then(ClientCommandManager.literal("ivPercentPreference")
+                                                .then(ClientCommandManager.argument("lowerBound", IntegerArgumentType.integer(0, 100))
+                                                        .then(ClientCommandManager.argument("upperBound", IntegerArgumentType.integer(0, 100))
+                                                                .executes(context -> {
+                                                                    int lower = IntegerArgumentType.getInteger(context, "lowerBound");
+                                                                    int upper = IntegerArgumentType.getInteger(context, "upperBound");
+                                                                    hudConfig.setDaycareIvPercentLower(lower);
+                                                                    hudConfig.setDaycareIvPercentUpper(upper);
+                                                                    context.getSource().sendFeedback(Component.literal(
+                                                                            "\u00A7aIV% thresholds set to \u00A76" + lower
+                                                                            + "%\u00A7a (orange) / \u00A7b" + upper + "%\u00A7a (blue)."));
+                                                                    return 1;
+                                                                })
+                                                        )
+                                                )
+                                                .executes(context -> {
+                                                    context.getSource().sendFeedback(Component.literal(
+                                                            "\u00A77IV% highlight thresholds:" +
+                                                            "\n\u00A76  Orange: \u00A7f" + hudConfig.getDaycareIvPercentLower() + "%+" +
+                                                            "\n\u00A7b  Blue: \u00A7f" + hudConfig.getDaycareIvPercentUpper() + "%+" +
+                                                            "\n\u00A77Usage: \u00A7e/saa config daycare ivPercentPreference <lower> <upper>"));
+                                                    return 1;
+                                                })
+                                        )
                                         .executes(context -> {
                                             context.getSource().sendFeedback(Component.literal(
                                                     "\u00A76Daycare Config:\n" +
                                                     "\u00A77menuEnabled = \u00A7f" + hudConfig.isDaycareMenuEnabled() +
                                                     "\n\u00A77soundsEnabled = \u00A7f" + hudConfig.isDaycareSoundsEnabled() +
                                                     "\n\u00A77eggsHatchingSlots = \u00A7f" + hudConfig.getDaycareEggsHatchingSlots() +
-                                                    "\n\u00A77babyGuards = \u00A7f" + hudConfig.isDaycareBabyGuards()));
+                                                    "\n\u00A77babyGuards = \u00A7f" + hudConfig.isDaycareBabyGuards() +
+                                                    "\n\u00A77ivPercentPreference = \u00A76" + hudConfig.getDaycareIvPercentLower() + "%+\u00A77 (orange) / \u00A7b" + hudConfig.getDaycareIvPercentUpper() + "%+\u00A77 (blue)"));
                                             return 1;
                                         })
                                 )

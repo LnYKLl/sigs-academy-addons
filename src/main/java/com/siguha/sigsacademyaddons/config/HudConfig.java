@@ -41,6 +41,7 @@ public class HudConfig {
     private int refScreenWidth = 0;
     private boolean safariTimerAlways = true;
     private float hudScale = 1.0f;
+    private int hudWidthOverride = 0;
     private boolean safariQuestMonGlow = true;
     private HudStyle hudStyle = HudStyle.SOLID;
     private HudLayout hudLayout = HudLayout.FULL;
@@ -53,6 +54,7 @@ public class HudConfig {
     private int daycareOffsetY = 5;
     private int daycareRefScreenWidth = 0;
     private float daycareScale = 1.0f;
+    private int daycareWidthOverride = 0;
     private int daycareEggsHatchingSlots = 5;
     private float manualHatchMultiplier = 0f;
 
@@ -64,9 +66,11 @@ public class HudConfig {
     private int wtOffsetY = 5;
     private int wtRefScreenWidth = 0;
     private float wtScale = 1.0f;
+    private int wtWidthOverride = 0;
 
     private List<String> joinedGroup = new ArrayList<>();
     private float groupScale = 1.0f;
+    private int groupWidthOverride = 0;
     private Anchor groupAnchor = Anchor.TOP_LEFT;
     private int groupOffsetX = 5;
     private int groupOffsetY = 5;
@@ -96,6 +100,7 @@ public class HudConfig {
     private int cardStatsOffsetY = 130;
     private int cardStatsRefScreenWidth = 0;
     private float cardStatsScale = 1.0f;
+    private int cardStatsWidthOverride = 0;
 
     public HudConfig() {
         load();
@@ -115,7 +120,14 @@ public class HudConfig {
     }
 
     public void setHudScale(float hudScale) {
-        this.hudScale = Math.max(0.5f, Math.min(2.0f, hudScale));
+        this.hudScale = Math.max(0.15f, Math.min(2.0f, hudScale));
+        save();
+    }
+
+    public int getHudWidthOverride() { return hudWidthOverride; }
+
+    public void setHudWidthOverride(int w) {
+        this.hudWidthOverride = w <= 0 ? 0 : Math.max(40, w);
         save();
     }
 
@@ -292,7 +304,14 @@ public class HudConfig {
     }
 
     public void setDaycareScale(float daycareScale) {
-        this.daycareScale = Math.max(0.5f, Math.min(2.0f, daycareScale));
+        this.daycareScale = Math.max(0.15f, Math.min(2.0f, daycareScale));
+        save();
+    }
+
+    public int getDaycareWidthOverride() { return daycareWidthOverride; }
+
+    public void setDaycareWidthOverride(int w) {
+        this.daycareWidthOverride = w <= 0 ? 0 : Math.max(40, w);
         save();
     }
 
@@ -377,7 +396,14 @@ public class HudConfig {
     }
 
     public void setWtScale(float wtScale) {
-        this.wtScale = Math.max(0.5f, Math.min(2.0f, wtScale));
+        this.wtScale = Math.max(0.15f, Math.min(2.0f, wtScale));
+        save();
+    }
+
+    public int getWtWidthOverride() { return wtWidthOverride; }
+
+    public void setWtWidthOverride(int w) {
+        this.wtWidthOverride = w <= 0 ? 0 : Math.max(40, w);
         save();
     }
 
@@ -432,7 +458,14 @@ public class HudConfig {
     }
 
     public void setGroupScale(float groupScale) {
-        this.groupScale = Math.max(0.5f, Math.min(2.0f, groupScale));
+        this.groupScale = Math.max(0.15f, Math.min(2.0f, groupScale));
+        save();
+    }
+
+    public int getGroupWidthOverride() { return groupWidthOverride; }
+
+    public void setGroupWidthOverride(int w) {
+        this.groupWidthOverride = w <= 0 ? 0 : Math.max(40, w);
         save();
     }
 
@@ -598,7 +631,14 @@ public class HudConfig {
     public float getCardStatsScale() { return cardStatsScale; }
 
     public void setCardStatsScale(float cardStatsScale) {
-        this.cardStatsScale = Math.max(0.5f, Math.min(2.0f, cardStatsScale));
+        this.cardStatsScale = Math.max(0.15f, Math.min(2.0f, cardStatsScale));
+        save();
+    }
+
+    public int getCardStatsWidthOverride() { return cardStatsWidthOverride; }
+
+    public void setCardStatsWidthOverride(int w) {
+        this.cardStatsWidthOverride = w <= 0 ? 0 : Math.max(40, w);
         save();
     }
 
@@ -684,7 +724,12 @@ public class HudConfig {
                     hasSeenWelcome, messageNotificationSound,
                     cardStatsMenuEnabled, cardStatsDisplayAlways, cardStatsDisplayInInventory,
                     cardStatsAnchor.name(), cardStatsOffsetX, cardStatsOffsetY,
-                    cardStatsScale, cardStatsRefScreenWidth);
+                    cardStatsScale, cardStatsRefScreenWidth,
+                    hudWidthOverride > 0 ? hudWidthOverride : null,
+                    daycareWidthOverride > 0 ? daycareWidthOverride : null,
+                    wtWidthOverride > 0 ? wtWidthOverride : null,
+                    groupWidthOverride > 0 ? groupWidthOverride : null,
+                    cardStatsWidthOverride > 0 ? cardStatsWidthOverride : null);
             try (Writer writer = Files.newBufferedWriter(filePath)) {
                 GSON.toJson(data, writer);
             }
@@ -765,6 +810,12 @@ public class HudConfig {
                     this.cardStatsOffsetY = data.cardStatsOffsetY != null ? data.cardStatsOffsetY : 130;
                     this.cardStatsScale = data.cardStatsScale != null && data.cardStatsScale > 0 ? data.cardStatsScale : 1.0f;
                     this.cardStatsRefScreenWidth = data.cardStatsRefScreenWidth != null ? data.cardStatsRefScreenWidth : 0;
+
+                    this.hudWidthOverride = data.hudWidthOverride != null && data.hudWidthOverride > 0 ? data.hudWidthOverride : 0;
+                    this.daycareWidthOverride = data.daycareWidthOverride != null && data.daycareWidthOverride > 0 ? data.daycareWidthOverride : 0;
+                    this.wtWidthOverride = data.wtWidthOverride != null && data.wtWidthOverride > 0 ? data.wtWidthOverride : 0;
+                    this.groupWidthOverride = data.groupWidthOverride != null && data.groupWidthOverride > 0 ? data.groupWidthOverride : 0;
+                    this.cardStatsWidthOverride = data.cardStatsWidthOverride != null && data.cardStatsWidthOverride > 0 ? data.cardStatsWidthOverride : 0;
                 }
             }
         } catch (Exception e) {
@@ -799,6 +850,9 @@ public class HudConfig {
             Boolean hasSeenWelcome, Boolean messageNotificationSound,
             Boolean cardStatsMenuEnabled, Boolean cardStatsDisplayAlways, Boolean cardStatsDisplayInInventory,
             String cardStatsAnchor, Integer cardStatsOffsetX, Integer cardStatsOffsetY,
-            Float cardStatsScale, Integer cardStatsRefScreenWidth) {
+            Float cardStatsScale, Integer cardStatsRefScreenWidth,
+            Integer hudWidthOverride, Integer daycareWidthOverride,
+            Integer wtWidthOverride, Integer groupWidthOverride,
+            Integer cardStatsWidthOverride) {
     }
 }

@@ -56,6 +56,12 @@ public class WondertradeHudRenderer implements HudPanel {
     }
 
     @Override
+    public int getContentHeight(Font font, int panelWidth) {
+        if (hudConfig.isCompact()) return calculateCompactPanelHeightForWidth(font, panelWidth);
+        return calculatePanelHeightForWidth(font, panelWidth);
+    }
+
+    @Override
     public void renderContent(GuiGraphics graphics, Font font, int panelWidth) {
         if (hudConfig.isCompact()) {
             renderCompact(graphics, font, panelWidth);
@@ -82,8 +88,9 @@ public class WondertradeHudRenderer implements HudPanel {
 
         boolean transparent = hudConfig.getHudStyle() == HudConfig.HudStyle.TRANSPARENT;
 
-        int panelWidth = getContentWidth(font);
-        int panelHeight = getContentHeight(font);
+        int widthOvr = hudConfig.getWtWidthOverride();
+        int panelWidth = widthOvr > 0 ? widthOvr : getContentWidth(font);
+        int panelHeight = getContentHeight(font, panelWidth);
 
         int scaledWidth = Math.round(panelWidth * scale);
         int scaledHeight = Math.round(panelHeight * scale);
@@ -106,9 +113,7 @@ public class WondertradeHudRenderer implements HudPanel {
 
     private void renderCompact(GuiGraphics graphics, Font font, int panelWidth) {
         int y = PADDING;
-        String prefix = "WT Time: ";
-        graphics.drawString(font, prefix, PADDING, y, COLOR_HEADER, true);
-        int textX = PADDING + font.width(prefix);
+        String prefix = "WT Time:";
 
         String timerText;
         int timerColor;
@@ -122,16 +127,15 @@ public class WondertradeHudRenderer implements HudPanel {
             timerText = wondertradeManager.getRemainingFormatted();
             timerColor = COLOR_TIMER;
         }
-        graphics.drawString(font, timerText, textX, y, timerColor, true);
+        HudTextUtil.renderStatLine(graphics, font, prefix, timerText,
+                COLOR_HEADER, timerColor, y, panelWidth, PADDING, LINE_HEIGHT);
     }
 
     private void renderFull(GuiGraphics graphics, Font font, int panelWidth) {
         int currentY = PADDING;
 
         String header = "SAA Wondertrade Helper";
-        int headerWidth = font.width(header);
-        graphics.drawString(font, header, (panelWidth - headerWidth) / 2, currentY, COLOR_HEADER, true);
-        currentY += LINE_HEIGHT;
+        currentY = HudTextUtil.renderWrappedCentered(graphics, font, header, panelWidth, currentY, COLOR_HEADER, LINE_HEIGHT);
 
         currentY += 2;
         graphics.fill(PADDING, currentY, panelWidth - PADDING, currentY + 1, 0xFF555555);
@@ -139,8 +143,7 @@ public class WondertradeHudRenderer implements HudPanel {
 
         if (!wondertradeManager.hasTimer()) {
             String unsetText = "Please use WT once to set menu.";
-            int unsetWidth = font.width(unsetText);
-            graphics.drawString(font, unsetText, (panelWidth - unsetWidth) / 2, currentY, COLOR_TEXT_UNSET, true);
+            currentY = HudTextUtil.renderWrappedCentered(graphics, font, unsetText, panelWidth, currentY, COLOR_TEXT_UNSET, LINE_HEIGHT);
 
         } else if (wondertradeManager.isCooldownOver()) {
             String doneText = "Cooldown Over!";
@@ -188,6 +191,19 @@ public class WondertradeHudRenderer implements HudPanel {
         return PADDING + LINE_HEIGHT + PADDING;
     }
 
+    private int calculateCompactPanelHeightForWidth(Font font, int panelWidth) {
+        String prefix = "WT Time:";
+        String timerText;
+        if (!wondertradeManager.hasTimer()) {
+            timerText = "Not Set";
+        } else if (wondertradeManager.isCooldownOver()) {
+            timerText = "Ready!";
+        } else {
+            timerText = wondertradeManager.getRemainingFormatted();
+        }
+        return PADDING + HudTextUtil.statLineHeight(font, prefix, timerText, panelWidth, PADDING, LINE_HEIGHT) + PADDING;
+    }
+
     private int calculatePanelWidth(Font font) {
         int maxWidth = PANEL_MIN_WIDTH;
         maxWidth = Math.max(maxWidth, font.width("SAA Wondertrade Helper") + PADDING * 2);
@@ -203,6 +219,22 @@ public class WondertradeHudRenderer implements HudPanel {
 
         if (!wondertradeManager.hasTimer()) {
             height += LINE_HEIGHT;
+        } else {
+            height += LINE_HEIGHT;
+            height += TIMER_BAR_HEIGHT;
+        }
+
+        height += PADDING;
+        return height;
+    }
+
+    private int calculatePanelHeightForWidth(Font font, int panelWidth) {
+        int height = PADDING;
+        height += HudTextUtil.wrappedCenteredHeight(font, "SAA Wondertrade Helper", panelWidth, LINE_HEIGHT);
+        height += 2 + SECTION_SPACING;
+
+        if (!wondertradeManager.hasTimer()) {
+            height += HudTextUtil.wrappedCenteredHeight(font, "Please use WT once to set menu.", panelWidth, LINE_HEIGHT);
         } else {
             height += LINE_HEIGHT;
             height += TIMER_BAR_HEIGHT;

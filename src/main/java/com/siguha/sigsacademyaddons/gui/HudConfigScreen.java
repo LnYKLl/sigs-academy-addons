@@ -1,6 +1,7 @@
 package com.siguha.sigsacademyaddons.gui;
 
 import com.siguha.sigsacademyaddons.config.HudConfig;
+import com.siguha.sigsacademyaddons.hud.HudTextUtil;
 import com.siguha.sigsacademyaddons.feature.cardstats.CardStatsManager;
 import com.siguha.sigsacademyaddons.feature.daycare.DaycareManager;
 import com.siguha.sigsacademyaddons.feature.safari.SafariHuntManager;
@@ -26,7 +27,7 @@ public class HudConfigScreen extends Screen {
     private static final int CORNER_HANDLE_SIZE = 6;
     private static final int CORNER_GRAB_RADIUS = 8;
 
-    private static final float MIN_SCALE = 0.5f;
+    private static final float MIN_SCALE = 0.15f;
     private static final float MAX_SCALE = 2.0f;
 
     private static final int COLOR_BG = 0xAA000000;
@@ -47,7 +48,12 @@ public class HudConfigScreen extends Screen {
     private static final int COLOR_PEN_LABEL = 0xFF88DDFF;
     private static final int COLOR_TIMER_GREEN = 0xFF55FF55;
 
-    private static final int UNJOIN_BUTTON_SIZE = 7;
+    private static final int POPUP_PADDING = 3;
+    private static final int POPUP_ITEM_SIZE = 11;
+    private static final int POPUP_ITEM_SPACING = 2;
+    private static final int POPUP_GAP = 4;
+    private static final int COLOR_POPUP_BG = 0xDD000000;
+    private static final int COLOR_MEMBER_HOVER = 0x22FFFFFF;
 
     private static final String NO_QUESTS_MESSAGE = "Please visit the Safari Hunt NPC and load your hunt menu.";
 
@@ -83,7 +89,8 @@ public class HudConfigScreen extends Screen {
         String panelId;
         String name;
         int unscaledWidth, unscaledHeight;
-        float currentScale;
+        float scale;
+        int widthOverride; // 0 = auto, >0 = fixed content width in unscaled px
         int scaledWidth, scaledHeight;
         int panelX, panelY;
 
@@ -93,14 +100,15 @@ public class HudConfigScreen extends Screen {
         }
 
         void updateScaledDimensions() {
-            scaledWidth = Math.round(unscaledWidth * currentScale);
-            scaledHeight = Math.round(unscaledHeight * currentScale);
+            scaledWidth = Math.round(unscaledWidth * scale);
+            scaledHeight = Math.round(unscaledHeight * scale);
         }
     }
 
     static class GroupState {
         List<PanelState> members = new ArrayList<>();
-        float currentScale;
+        float scale;
+        int widthOverride; // 0 = auto, >0 = fixed content width in unscaled px
         int panelX, panelY;
         int maxUnscaledWidth;
         int totalUnscaledHeight;
@@ -113,8 +121,8 @@ public class HudConfigScreen extends Screen {
                 maxUnscaledWidth = Math.max(maxUnscaledWidth, members.get(i).unscaledWidth);
                 totalUnscaledHeight += members.get(i).unscaledHeight;
             }
-            scaledWidth = Math.round(maxUnscaledWidth * currentScale);
-            scaledHeight = Math.round(totalUnscaledHeight * currentScale);
+            scaledWidth = Math.round(maxUnscaledWidth * scale);
+            scaledHeight = Math.round(totalUnscaledHeight * scale);
         }
     }
 
@@ -125,6 +133,7 @@ public class HudConfigScreen extends Screen {
     private GroupState groupState;
 
     private enum DragMode { NONE, MOVE, RESIZE }
+    private enum EdgeHit { LEFT, RIGHT }
     private DragMode dragMode = DragMode.NONE;
     private PanelState activePanel = null;
     private boolean draggingGroup = false;
@@ -137,8 +146,12 @@ public class HudConfigScreen extends Screen {
 
     private int resizeAnchorX;
     private int resizeAnchorY;
+
+    private int hoveredMemberIndex = -1;
+    private int popupX = -1, popupY = -1, popupW = 0, popupH = 0;
     private boolean resizeFromLeft;
     private boolean resizeFromTop;
+    private EdgeHit activeEdge = null;
 
     private boolean suppressionMenuExpanded = false;
 
@@ -186,33 +199,37 @@ public class HudConfigScreen extends Screen {
         boolean compact = hudConfig.isCompact();
 
         safariPanel = new PanelState("safari", "Safari");
-        safariPanel.unscaledWidth = placeholderSafariWidth(compact);
-        safariPanel.unscaledHeight = placeholderSafariHeight(compact);
-        safariPanel.currentScale = hudConfig.getHudScale();
+        safariPanel.scale = hudConfig.getHudScale();
+        safariPanel.widthOverride = hudConfig.getHudWidthOverride();
+        safariPanel.unscaledWidth = safariPanel.widthOverride > 0 ? safariPanel.widthOverride : placeholderSafariWidth(compact);
+        safariPanel.unscaledHeight = safariPanel.widthOverride > 0 ? placeholderHeightForWidth(safariPanel, safariPanel.widthOverride) : placeholderSafariHeight(compact);
         safariPanel.updateScaledDimensions();
         safariPanel.panelX = hudConfig.getPanelX(this.width, safariPanel.scaledWidth);
         safariPanel.panelY = hudConfig.getPanelY(this.height, safariPanel.scaledHeight);
 
         daycarePanel = new PanelState("daycare", "Daycare");
-        daycarePanel.unscaledWidth = placeholderDaycareWidth(compact);
-        daycarePanel.unscaledHeight = placeholderDaycareHeight(compact);
-        daycarePanel.currentScale = hudConfig.getDaycareScale();
+        daycarePanel.scale = hudConfig.getDaycareScale();
+        daycarePanel.widthOverride = hudConfig.getDaycareWidthOverride();
+        daycarePanel.unscaledWidth = daycarePanel.widthOverride > 0 ? daycarePanel.widthOverride : placeholderDaycareWidth(compact);
+        daycarePanel.unscaledHeight = daycarePanel.widthOverride > 0 ? placeholderHeightForWidth(daycarePanel, daycarePanel.widthOverride) : placeholderDaycareHeight(compact);
         daycarePanel.updateScaledDimensions();
         daycarePanel.panelX = hudConfig.getDaycarePanelX(this.width, daycarePanel.scaledWidth);
         daycarePanel.panelY = hudConfig.getDaycarePanelY(this.height, daycarePanel.scaledHeight);
 
         wtPanel = new PanelState("wondertrade", "Wondertrade");
-        wtPanel.unscaledWidth = placeholderWtWidth(compact);
-        wtPanel.unscaledHeight = placeholderWtHeight(compact);
-        wtPanel.currentScale = hudConfig.getWtScale();
+        wtPanel.scale = hudConfig.getWtScale();
+        wtPanel.widthOverride = hudConfig.getWtWidthOverride();
+        wtPanel.unscaledWidth = wtPanel.widthOverride > 0 ? wtPanel.widthOverride : placeholderWtWidth(compact);
+        wtPanel.unscaledHeight = wtPanel.widthOverride > 0 ? placeholderHeightForWidth(wtPanel, wtPanel.widthOverride) : placeholderWtHeight(compact);
         wtPanel.updateScaledDimensions();
         wtPanel.panelX = hudConfig.getWtPanelX(this.width, wtPanel.scaledWidth);
         wtPanel.panelY = hudConfig.getWtPanelY(this.height, wtPanel.scaledHeight);
 
         cardStatsPanel = new PanelState("cardstats", "Card Stats");
-        cardStatsPanel.unscaledWidth = placeholderCardStatsWidth(compact);
-        cardStatsPanel.unscaledHeight = placeholderCardStatsHeight(compact);
-        cardStatsPanel.currentScale = hudConfig.getCardStatsScale();
+        cardStatsPanel.scale = hudConfig.getCardStatsScale();
+        cardStatsPanel.widthOverride = hudConfig.getCardStatsWidthOverride();
+        cardStatsPanel.unscaledWidth = cardStatsPanel.widthOverride > 0 ? cardStatsPanel.widthOverride : placeholderCardStatsWidth(compact);
+        cardStatsPanel.unscaledHeight = cardStatsPanel.widthOverride > 0 ? placeholderHeightForWidth(cardStatsPanel, cardStatsPanel.widthOverride) : placeholderCardStatsHeight(compact);
         cardStatsPanel.updateScaledDimensions();
         cardStatsPanel.panelX = hudConfig.getCardStatsPanelX(this.width, cardStatsPanel.scaledWidth);
         cardStatsPanel.panelY = hudConfig.getCardStatsPanelY(this.height, cardStatsPanel.scaledHeight);
@@ -221,7 +238,8 @@ public class HudConfigScreen extends Screen {
         List<String> groupOrder = hudConfig.getJoinedGroup();
         if (groupOrder.size() >= 2) {
             groupState = new GroupState();
-            groupState.currentScale = hudConfig.getGroupScale();
+            groupState.scale = hudConfig.getGroupScale();
+            groupState.widthOverride = hudConfig.getGroupWidthOverride();
             for (String id : groupOrder) {
                 PanelState panel = getPanelById(id);
                 if (panel != null) {
@@ -229,6 +247,13 @@ public class HudConfigScreen extends Screen {
                 }
             }
             if (groupState.members.size() >= 2) {
+                if (groupState.widthOverride > 0) {
+                    for (PanelState member : groupState.members) {
+                        member.unscaledWidth = groupState.widthOverride;
+                        member.unscaledHeight = placeholderHeightForWidth(member, groupState.widthOverride);
+                        member.updateScaledDimensions();
+                    }
+                }
                 groupState.recalculate();
                 groupState.panelX = hudConfig.getGroupPanelX(this.width, groupState.scaledWidth);
                 groupState.panelY = hudConfig.getGroupPanelY(this.height, groupState.scaledHeight);
@@ -246,7 +271,7 @@ public class HudConfigScreen extends Screen {
         super.render(graphics, mouseX, mouseY, partialTick);
 
         graphics.fill(0, 0, this.width, this.height, 0x88000000);
-        String title = "Drag to reposition | Drag corners to resize | Overlap to join";
+        String title = "Drag to move | Corners: uniform resize | Edges: change width | Overlap to join";
         int titleWidth = this.font.width(title);
         graphics.drawString(this.font, title, (this.width - titleWidth) / 2, 10, COLOR_HEADER, true);
 
@@ -275,6 +300,13 @@ public class HudConfigScreen extends Screen {
 
         if (dragMode == DragMode.MOVE && activePanel != null && !draggingGroup) {
             renderJoinHint(graphics, activePanel);
+        }
+
+        if (groupState != null && hoveredMemberIndex >= 0) {
+            graphics.pose().pushPose();
+            graphics.pose().translate(0, 0, 200);
+            renderMemberPopup(graphics, mouseX, mouseY);
+            graphics.pose().popPose();
         }
     }
 
@@ -348,7 +380,7 @@ public class HudConfigScreen extends Screen {
     private void renderPanel(GuiGraphics graphics, PanelState panel, int mouseX, int mouseY, int panelColor) {
         graphics.pose().pushPose();
         graphics.pose().translate(panel.panelX, panel.panelY, 0);
-        graphics.pose().scale(panel.currentScale, panel.currentScale, 1.0f);
+        graphics.pose().scale(panel.scale, panel.scale, 1.0f);
 
         if (panel == safariPanel) {
             renderSafariPreview(graphics, panel);
@@ -374,7 +406,11 @@ public class HudConfigScreen extends Screen {
 
         String label;
         if (activePanel == panel && dragMode == DragMode.RESIZE) {
-            label = panel.name + " - Scale: " + String.format("%.0f%%", panel.currentScale * 100);
+            if (isEdgeDrag()) {
+                label = panel.name + " - Width: " + panel.widthOverride + "px";
+            } else {
+                label = panel.name + " - Scale: " + String.format("%.0f%%", panel.scale * 100);
+            }
         } else {
             label = panel.name;
         }
@@ -384,6 +420,7 @@ public class HudConfigScreen extends Screen {
         graphics.drawString(this.font, label, labelX, labelY, panelColor, true);
 
         drawCornerHandles(graphics, panel, mouseX, mouseY, panelColor);
+        drawEdgeHandles(graphics, panel, mouseX, mouseY, panelColor);
     }
 
     private void drawOutline(GuiGraphics graphics, int x, int y, int w, int h, int color) {
@@ -412,6 +449,22 @@ public class HudConfigScreen extends Screen {
         drawResizeIcon(graphics, panel.panelX - 1, panel.panelY - 1, color);
     }
 
+    private void drawEdgeHandles(GuiGraphics graphics, PanelState panel, int mouseX, int mouseY, int panelColor) {
+        int px = panel.panelX, py = panel.panelY, pw = panel.scaledWidth, ph = panel.scaledHeight;
+        EdgeHit hoveredEdge = getEdgeHit(panel, mouseX, mouseY);
+        boolean resizingEdge = activePanel == panel && isEdgeDrag();
+
+        int tickLen = 5;
+        int tickThick = 2;
+        int midY = py + ph / 2;
+
+        int color = (hoveredEdge == EdgeHit.LEFT || (resizingEdge && activeEdge == EdgeHit.LEFT)) ? COLOR_CORNER_HOVER : panelColor;
+        graphics.fill(px - tickThick, midY - tickLen, px, midY + tickLen, color);
+
+        color = (hoveredEdge == EdgeHit.RIGHT || (resizingEdge && activeEdge == EdgeHit.RIGHT)) ? COLOR_CORNER_HOVER : panelColor;
+        graphics.fill(px + pw, midY - tickLen, px + pw + tickThick, midY + tickLen, color);
+    }
+
     private void renderGroup(GuiGraphics graphics, int mouseX, int mouseY) {
         boolean transparent = hudConfig.getHudStyle() == HudConfig.HudStyle.TRANSPARENT;
 
@@ -419,7 +472,7 @@ public class HudConfigScreen extends Screen {
 
         graphics.pose().pushPose();
         graphics.pose().translate(groupState.panelX, groupState.panelY, 0);
-        graphics.pose().scale(groupState.currentScale, groupState.currentScale, 1.0f);
+        graphics.pose().scale(groupState.scale, groupState.scale, 1.0f);
 
         if (!transparent) {
             graphics.fill(0, 0, groupState.maxUnscaledWidth, groupState.totalUnscaledHeight, COLOR_BG);
@@ -462,7 +515,11 @@ public class HudConfigScreen extends Screen {
         }
         String label;
         if (draggingGroup && dragMode == DragMode.RESIZE) {
-            label = labelBuilder + " - Scale: " + String.format("%.0f%%", groupState.currentScale * 100);
+            if (isEdgeDrag()) {
+                label = labelBuilder + " - Width: " + groupState.widthOverride + "px";
+            } else {
+                label = labelBuilder + " - Scale: " + String.format("%.0f%%", groupState.scale * 100);
+            }
         } else {
             label = labelBuilder.toString();
         }
@@ -472,9 +529,11 @@ public class HudConfigScreen extends Screen {
         graphics.drawString(this.font, label, labelX, labelY, COLOR_OUTLINE_GROUP, true);
 
         drawGroupCornerHandles(graphics, mouseX, mouseY);
+        drawGroupEdgeHandles(graphics, mouseX, mouseY);
 
-        if (isInsideGroup(mouseX, mouseY) && dragMode == DragMode.NONE) {
-            renderUnjoinButtons(graphics, mouseX, mouseY);
+        updateHoveredMember(mouseX, mouseY);
+        if (dragMode == DragMode.NONE) {
+            renderMemberHighlight(graphics);
         }
     }
 
@@ -494,47 +553,183 @@ public class HudConfigScreen extends Screen {
         }
     }
 
-    private void renderUnjoinButtons(GuiGraphics graphics, int mouseX, int mouseY) {
-        float scale = groupState.currentScale;
+    private int getMemberScreenY(int memberIndex) {
         int currentY = 0;
+        for (int j = 0; j < memberIndex; j++) {
+            currentY += groupState.members.get(j).unscaledHeight;
+        }
+        return groupState.panelY + Math.round(currentY * groupState.scale);
+    }
+
+    private int getMemberScreenHeight(int memberIndex) {
+        return Math.round(groupState.members.get(memberIndex).unscaledHeight * groupState.scale);
+    }
+
+    private void updateHoveredMember(int mouseX, int mouseY) {
+        if (groupState == null || dragMode != DragMode.NONE) {
+            hoveredMemberIndex = -1;
+            return;
+        }
+
+        if (popupX >= 0 && hoveredMemberIndex >= 0) {
+            boolean popupRight = popupX > groupState.panelX + groupState.scaledWidth;
+            int gapX1, gapX2;
+            if (popupRight) {
+                gapX1 = groupState.panelX + groupState.scaledWidth;
+                gapX2 = popupX + popupW;
+            } else {
+                gapX1 = popupX;
+                gapX2 = groupState.panelX;
+            }
+            boolean inPopupZone = mouseX >= gapX1 && mouseX <= gapX2
+                    && mouseY >= popupY && mouseY <= popupY + popupH;
+            if (inPopupZone) return;
+        }
+
+        if (mouseX < groupState.panelX || mouseX > groupState.panelX + groupState.scaledWidth
+                || mouseY < groupState.panelY || mouseY > groupState.panelY + groupState.scaledHeight) {
+            hoveredMemberIndex = -1;
+            return;
+        }
 
         for (int i = 0; i < groupState.members.size(); i++) {
-            currentY += groupState.members.get(i).unscaledHeight;
-
-            int buttonCenterX = groupState.panelX + groupState.scaledWidth / 2;
-            int buttonCenterY = groupState.panelY + Math.round(currentY * scale);
-
-            graphics.fill(groupState.panelX, buttonCenterY,
-                    groupState.panelX + groupState.scaledWidth, buttonCenterY + 1, COLOR_OUTLINE_GROUP);
-
-            int hs = UNJOIN_BUTTON_SIZE / 2;
-            int bx = buttonCenterX - hs;
-            int by = buttonCenterY - hs;
-
-            boolean xHovered = mouseX >= bx - 1 && mouseX <= bx + UNJOIN_BUTTON_SIZE + 1
-                    && mouseY >= by - 1 && mouseY <= by + UNJOIN_BUTTON_SIZE + 1;
-
-            int xColor = xHovered ? 0xFFFFFFFF : COLOR_UNJOIN_X;
-            String xChar = "x";
-            int xWidth = this.font.width(xChar);
-            int textX = buttonCenterX - xWidth / 2;
-            int textY = buttonCenterY - this.font.lineHeight / 2 + 1;
-            graphics.drawString(this.font, xChar, textX, textY, xColor, true);
-
-            int arrowX = groupState.panelX + groupState.scaledWidth - 12;
-            if (i > 0) {
-                int ay = buttonCenterY - 7;
-                boolean upHovered = mouseX >= arrowX - 1 && mouseX <= arrowX + 8
-                        && mouseY >= ay - 1 && mouseY <= ay + 5;
-                drawUpArrow(graphics, arrowX, ay, upHovered ? 0xFFFFFFFF : COLOR_UNJOIN_X);
+            int memberTop = getMemberScreenY(i);
+            int memberH = getMemberScreenHeight(i);
+            if (mouseY >= memberTop && mouseY < memberTop + memberH) {
+                hoveredMemberIndex = i;
+                return;
             }
-            if (i < groupState.members.size() - 1) {
-                int ay = buttonCenterY + 3;
-                boolean downHovered = mouseX >= arrowX - 1 && mouseX <= arrowX + 8
-                        && mouseY >= ay - 1 && mouseY <= ay + 5;
-                drawDownArrow(graphics, arrowX, ay, downHovered ? 0xFFFFFFFF : COLOR_UNJOIN_X);
+        }
+        hoveredMemberIndex = -1;
+    }
+
+    private void renderMemberHighlight(GuiGraphics graphics) {
+        if (hoveredMemberIndex < 0) return;
+        int memberTop = getMemberScreenY(hoveredMemberIndex);
+        int memberH = getMemberScreenHeight(hoveredMemberIndex);
+        graphics.fill(groupState.panelX, memberTop,
+                groupState.panelX + groupState.scaledWidth, memberTop + memberH, COLOR_MEMBER_HOVER);
+    }
+
+    private void renderMemberPopup(GuiGraphics graphics, int mouseX, int mouseY) {
+        int idx = hoveredMemberIndex;
+        boolean hasUp = idx > 0;
+        boolean hasDown = idx < groupState.members.size() - 1;
+        boolean hasArrows = hasUp || hasDown;
+
+        int arrowColW = POPUP_ITEM_SIZE;
+        int arrowHalfH = (POPUP_ITEM_SIZE - POPUP_ITEM_SPACING) / 2;
+        int stackH = arrowHalfH * 2 + POPUP_ITEM_SPACING;
+
+        popupW = POPUP_PADDING * 2 + POPUP_ITEM_SIZE + (hasArrows ? POPUP_ITEM_SPACING + arrowColW : 0);
+        popupH = POPUP_PADDING * 2 + (hasArrows ? Math.max(POPUP_ITEM_SIZE, stackH) : POPUP_ITEM_SIZE);
+
+        int memberTop = getMemberScreenY(idx);
+        int memberH = getMemberScreenHeight(idx);
+        int memberCenterY = memberTop + memberH / 2;
+
+        int candidateX = groupState.panelX + groupState.scaledWidth + POPUP_GAP;
+        if (candidateX + popupW > this.width) {
+            candidateX = groupState.panelX - popupW - POPUP_GAP;
+        }
+        popupX = Math.max(0, candidateX);
+        popupY = Math.max(0, Math.min(memberCenterY - popupH / 2, this.height - popupH));
+
+        graphics.fill(popupX, popupY, popupX + popupW, popupY + popupH, COLOR_POPUP_BG);
+        drawOutline(graphics, popupX, popupY, popupW, popupH, COLOR_OUTLINE_GROUP);
+
+        int leftX = popupX + POPUP_PADDING;
+        int contentTop = popupY + POPUP_PADDING;
+
+        if (hasArrows) {
+            int arrowTop = contentTop;
+            if (hasUp) {
+                boolean hovered = mouseX >= leftX && mouseX < leftX + arrowColW
+                        && mouseY >= arrowTop && mouseY < arrowTop + arrowHalfH;
+                if (hovered) {
+                    graphics.fill(leftX, arrowTop, leftX + arrowColW, arrowTop + arrowHalfH, COLOR_BUTTON_BG_HOVER);
+                }
+                int ax = leftX + (arrowColW - 7) / 2;
+                int ay = arrowTop + (arrowHalfH - 4) / 2;
+                drawUpArrow(graphics, ax, ay, hovered ? 0xFFFFFFFF : COLOR_UNJOIN_X);
             }
 
+            int downTop = arrowTop + arrowHalfH + POPUP_ITEM_SPACING;
+            if (hasDown) {
+                boolean hovered = mouseX >= leftX && mouseX < leftX + arrowColW
+                        && mouseY >= downTop && mouseY < downTop + arrowHalfH;
+                if (hovered) {
+                    graphics.fill(leftX, downTop, leftX + arrowColW, downTop + arrowHalfH, COLOR_BUTTON_BG_HOVER);
+                }
+                int ax = leftX + (arrowColW - 7) / 2;
+                int ay = downTop + (arrowHalfH - 4) / 2;
+                drawDownArrow(graphics, ax, ay, hovered ? 0xFFFFFFFF : COLOR_UNJOIN_X);
+            }
+        }
+
+        int xSlotX = hasArrows ? leftX + arrowColW + POPUP_ITEM_SPACING : leftX;
+        int xSlotY = contentTop + (popupH - POPUP_PADDING * 2 - POPUP_ITEM_SIZE) / 2;
+        boolean xHovered = mouseX >= xSlotX && mouseX < xSlotX + POPUP_ITEM_SIZE
+                && mouseY >= xSlotY && mouseY < xSlotY + POPUP_ITEM_SIZE;
+        if (xHovered) {
+            graphics.fill(xSlotX, xSlotY, xSlotX + POPUP_ITEM_SIZE, xSlotY + POPUP_ITEM_SIZE, COLOR_BUTTON_BG_HOVER);
+        }
+        String xChar = "x";
+        int xw = this.font.width(xChar);
+        graphics.drawString(this.font, xChar, xSlotX + (POPUP_ITEM_SIZE - xw) / 2,
+                xSlotY + (POPUP_ITEM_SIZE - this.font.lineHeight) / 2 + 1,
+                xHovered ? 0xFFFFFFFF : COLOR_UNJOIN_X, true);
+    }
+
+    private int getPopupButtonHit(int mx, int my) {
+        if (mx < popupX || mx > popupX + popupW || my < popupY || my > popupY + popupH) return 0;
+
+        int idx = hoveredMemberIndex;
+        boolean hasUp = idx > 0;
+        boolean hasDown = idx < groupState.members.size() - 1;
+        boolean hasArrows = hasUp || hasDown;
+
+        int arrowColW = POPUP_ITEM_SIZE;
+        int arrowHalfH = (POPUP_ITEM_SIZE - POPUP_ITEM_SPACING) / 2;
+
+        int leftX = popupX + POPUP_PADDING;
+        int contentTop = popupY + POPUP_PADDING;
+
+        if (hasArrows) {
+            int arrowTop = contentTop;
+            if (hasUp && mx >= leftX && mx < leftX + arrowColW
+                    && my >= arrowTop && my < arrowTop + arrowHalfH) return -1;
+            int downTop = arrowTop + arrowHalfH + POPUP_ITEM_SPACING;
+            if (hasDown && mx >= leftX && mx < leftX + arrowColW
+                    && my >= downTop && my < downTop + arrowHalfH) return 1;
+        }
+
+        int xSlotX = hasArrows ? leftX + arrowColW + POPUP_ITEM_SPACING : leftX;
+        int xSlotY = contentTop + (popupH - POPUP_PADDING * 2 - POPUP_ITEM_SIZE) / 2;
+        if (mx >= xSlotX && mx < xSlotX + POPUP_ITEM_SIZE
+                && my >= xSlotY && my < xSlotY + POPUP_ITEM_SIZE) return 2;
+
+        return 0;
+    }
+
+    private void handlePopupClick(int hitType) {
+        int idx = hoveredMemberIndex;
+        if (hitType == 2) {
+            unjoinPanel(idx);
+            hoveredMemberIndex = -1;
+            popupX = -1;
+        } else if (hitType == -1 && idx > 0) {
+            PanelState temp = groupState.members.get(idx);
+            groupState.members.set(idx, groupState.members.get(idx - 1));
+            groupState.members.set(idx - 1, temp);
+            groupState.recalculate();
+            hoveredMemberIndex = idx - 1;
+        } else if (hitType == 1 && idx < groupState.members.size() - 1) {
+            PanelState temp = groupState.members.get(idx);
+            groupState.members.set(idx, groupState.members.get(idx + 1));
+            groupState.members.set(idx + 1, temp);
+            groupState.recalculate();
+            hoveredMemberIndex = idx + 1;
         }
     }
 
@@ -591,6 +786,22 @@ public class HudConfigScreen extends Screen {
         drawResizeIcon(graphics, groupState.panelX - 1, groupState.panelY - 1, color);
     }
 
+    private void drawGroupEdgeHandles(GuiGraphics graphics, int mouseX, int mouseY) {
+        int px = groupState.panelX, py = groupState.panelY, pw = groupState.scaledWidth, ph = groupState.scaledHeight;
+        EdgeHit hoveredEdge = getGroupEdgeHit(mouseX, mouseY);
+        boolean resizingEdge = draggingGroup && isEdgeDrag();
+
+        int tickLen = 5;
+        int tickThick = 2;
+        int midY = py + ph / 2;
+
+        int color = (hoveredEdge == EdgeHit.LEFT || (resizingEdge && activeEdge == EdgeHit.LEFT)) ? COLOR_CORNER_HOVER : COLOR_OUTLINE_GROUP;
+        graphics.fill(px - tickThick, midY - tickLen, px, midY + tickLen, color);
+
+        color = (hoveredEdge == EdgeHit.RIGHT || (resizingEdge && activeEdge == EdgeHit.RIGHT)) ? COLOR_CORNER_HOVER : COLOR_OUTLINE_GROUP;
+        graphics.fill(px + pw, midY - tickLen, px + pw + tickThick, midY + tickLen, color);
+    }
+
     private void renderSafariPreview(GuiGraphics graphics, PanelState panel) {
         boolean transparent = hudConfig.getHudStyle() == HudConfig.HudStyle.TRANSPARENT;
 
@@ -608,10 +819,8 @@ public class HudConfigScreen extends Screen {
     private void renderCompactSafariPreview(GuiGraphics graphics, PanelState panel) {
         int y = PADDING;
 
-        String prefix = "Safari: ";
-        graphics.drawString(this.font, prefix, PADDING, y, COLOR_HEADER, true);
-        graphics.drawString(this.font, "24:31", PADDING + this.font.width(prefix), y, 0xFF55FF55, true);
-        y += LINE_HEIGHT;
+        y = HudTextUtil.renderStatLine(graphics, this.font, "Safari:", "24:31",
+                COLOR_HEADER, 0xFF55FF55, y, panel.unscaledWidth, PADDING, LINE_HEIGHT);
 
         String[][] placeholderHunts = {
                 {"Dragon Type", "[0/30]", "- 1h 4m"},
@@ -624,25 +833,22 @@ public class HudConfigScreen extends Screen {
         int[] slotColors = {0xFFFF5555, 0xFF5555FF, 0xFF55FF55, 0xFFFFFF55, 0xFF55FFFF, 0xFFFF55FF};
 
         for (int i = 0; i < placeholderHunts.length; i++) {
-            int px = PADDING;
             int nameColor = i == 5 ? COLOR_PROGRESS_COMPLETE : slotColors[i];
-            graphics.drawString(this.font, placeholderHunts[i][0], px, y, nameColor, true);
-            px += this.font.width(placeholderHunts[i][0]) + 4;
-            int countColor = i == 5 ? COLOR_PROGRESS_COMPLETE : COLOR_HINT;
-            graphics.drawString(this.font, placeholderHunts[i][1], px, y, countColor, true);
-            px += this.font.width(placeholderHunts[i][1]);
+            String nameAndCount = placeholderHunts[i][0] + " " + placeholderHunts[i][1];
             if (!placeholderHunts[i][2].isEmpty()) {
-                graphics.drawString(this.font, " " + placeholderHunts[i][2], px, y, 0xFFFF8855, true);
+                y = HudTextUtil.renderStatLine(graphics, this.font, nameAndCount, " " + placeholderHunts[i][2],
+                        nameColor, 0xFFFF8855, y, panel.unscaledWidth, PADDING, LINE_HEIGHT);
+            } else {
+                graphics.drawString(this.font, nameAndCount, PADDING, y, nameColor, true);
+                y += LINE_HEIGHT;
             }
-            y += LINE_HEIGHT;
         }
     }
 
     private void renderFullSafariPreview(GuiGraphics graphics, PanelState panel) {
         int y = PADDING;
 
-        graphics.drawString(this.font, "SAA Safari Helper", PADDING, y, COLOR_HEADER, true);
-        y += LINE_HEIGHT;
+        y = HudTextUtil.renderWrappedCentered(graphics, this.font, "SAA Safari Helper", panel.unscaledWidth, y, COLOR_HEADER, LINE_HEIGHT);
 
         int barWidth = panel.unscaledWidth - (PADDING * 2);
         graphics.fill(PADDING, y, PADDING + barWidth, y + TIMER_BAR_HEIGHT, COLOR_TIMER_BAR_BG);
@@ -674,14 +880,14 @@ public class HudConfigScreen extends Screen {
         for (int i = 0; i < placeholderHunts.length; i++) {
             boolean complete = i == 5;
             int nameColor = complete ? COLOR_PROGRESS_COMPLETE : COLOR_TEXT;
-            graphics.drawString(this.font, placeholderHunts[i][0], PADDING, y, nameColor, true);
 
             if (!placeholderHunts[i][3].isEmpty()) {
-                int resetWidth = this.font.width(placeholderHunts[i][3]);
-                graphics.drawString(this.font, placeholderHunts[i][3], panel.unscaledWidth - PADDING - resetWidth, y,
-                        0xFFFF8855, true);
+                y = HudTextUtil.renderStatLine(graphics, this.font, placeholderHunts[i][0], placeholderHunts[i][3],
+                        nameColor, 0xFFFF8855, y, panel.unscaledWidth, PADDING, LINE_HEIGHT);
+            } else {
+                graphics.drawString(this.font, placeholderHunts[i][0], PADDING, y, nameColor, true);
+                y += LINE_HEIGHT;
             }
-            y += LINE_HEIGHT;
 
             int numberColor = complete ? COLOR_PROGRESS_COMPLETE : COLOR_QUEST_NUMBER;
             int slashColor = complete ? COLOR_PROGRESS_COMPLETE : COLOR_HINT;
@@ -722,15 +928,11 @@ public class HudConfigScreen extends Screen {
 
         for (int i = 0; i < penCount; i++) {
             String penLabel = "[PEN " + (i + 1) + "]";
-            graphics.drawString(this.font, penLabel, PADDING + 2, y, COLOR_PEN_LABEL, true);
-            int textX = PADDING + 2 + this.font.width(penLabel) + 4;
-
             String species = PLACEHOLDER_PEN_SPECIES[i % PLACEHOLDER_PEN_SPECIES.length];
             String timer = PLACEHOLDER_PEN_TIMERS[i % PLACEHOLDER_PEN_TIMERS.length];
-            graphics.drawString(this.font, species, textX, y, COLOR_TEXT, true);
-            int tw = this.font.width(timer);
-            graphics.drawString(this.font, timer, panel.unscaledWidth - PADDING - tw, y, COLOR_TIMER_GREEN, true);
-            y += LINE_HEIGHT;
+            String namepart = penLabel + " " + species;
+            y = HudTextUtil.renderStatLine(graphics, this.font, namepart, timer,
+                    COLOR_TEXT, COLOR_TIMER_GREEN, y, panel.unscaledWidth, PADDING, LINE_HEIGHT);
         }
 
         if (maxEggs > 0) {
@@ -740,10 +942,8 @@ public class HudConfigScreen extends Screen {
             for (int i = 0; i < maxEggs; i++) {
                 String eggName = PLACEHOLDER_EGG_NAMES[i % PLACEHOLDER_EGG_NAMES.length];
                 String eggTimer = PLACEHOLDER_EGG_TIMERS[i % PLACEHOLDER_EGG_TIMERS.length];
-                graphics.drawString(this.font, eggName, PADDING + 2, y, COLOR_TEXT, true);
-                int tw = this.font.width(eggTimer);
-                graphics.drawString(this.font, eggTimer, panel.unscaledWidth - PADDING - tw, y, COLOR_TIMER_GREEN, true);
-                y += LINE_HEIGHT;
+                y = HudTextUtil.renderStatLine(graphics, this.font, eggName, eggTimer,
+                        COLOR_TEXT, COLOR_TIMER_GREEN, y, panel.unscaledWidth, PADDING, LINE_HEIGHT);
             }
 
             graphics.drawString(this.font, "(+1 more)", PADDING + 2, y, COLOR_HINT, true);
@@ -755,10 +955,7 @@ public class HudConfigScreen extends Screen {
         int penCount = getPlaceholderPenCount();
         int maxEggs = hudConfig.getDaycareEggsHatchingSlots();
 
-        String dcHeader = "SAA Daycare Helper";
-        int dcHeaderW = this.font.width(dcHeader);
-        graphics.drawString(this.font, dcHeader, (panel.unscaledWidth - dcHeaderW) / 2, y, COLOR_HEADER, true);
-        y += LINE_HEIGHT;
+        y = HudTextUtil.renderWrappedCentered(graphics, this.font, "SAA Daycare Helper", panel.unscaledWidth, y, COLOR_HEADER, LINE_HEIGHT);
 
         int barX = PADDING + 2;
         int barWidth = panel.unscaledWidth - barX - PADDING;
@@ -775,12 +972,9 @@ public class HudConfigScreen extends Screen {
             String timer = PLACEHOLDER_PEN_TIMERS[i % PLACEHOLDER_PEN_TIMERS.length];
             float progress = PLACEHOLDER_PEN_PROGRESS[i % PLACEHOLDER_PEN_PROGRESS.length];
 
-            graphics.drawString(this.font, penLabel, PADDING + 2, y, COLOR_PEN_LABEL, true);
-            int speciesX = PADDING + 2 + this.font.width(penLabel) + 4;
-            graphics.drawString(this.font, species, speciesX, y, COLOR_TEXT, true);
-            int tw = this.font.width(timer);
-            graphics.drawString(this.font, timer, panel.unscaledWidth - PADDING - tw, y, COLOR_TIMER_GREEN, true);
-            y += LINE_HEIGHT;
+            String namepart = penLabel + " " + species;
+            y = HudTextUtil.renderStatLine(graphics, this.font, namepart, timer,
+                    COLOR_TEXT, COLOR_TIMER_GREEN, y, panel.unscaledWidth, PADDING, LINE_HEIGHT);
             graphics.fill(barX, y, barX + barWidth, y + 6, COLOR_TIMER_BAR_BG);
             graphics.fill(barX, y, barX + (int)(barWidth * progress), y + 6, COLOR_TIMER_GREEN);
             y += 8;
@@ -798,10 +992,8 @@ public class HudConfigScreen extends Screen {
                 String eggTimer = PLACEHOLDER_EGG_TIMERS[i % PLACEHOLDER_EGG_TIMERS.length];
                 float progress = PLACEHOLDER_EGG_PROGRESS[i % PLACEHOLDER_EGG_PROGRESS.length];
 
-                graphics.drawString(this.font, eggName, PADDING + 2, y, COLOR_TEXT, true);
-                int tw = this.font.width(eggTimer);
-                graphics.drawString(this.font, eggTimer, panel.unscaledWidth - PADDING - tw, y, COLOR_TIMER_GREEN, true);
-                y += LINE_HEIGHT;
+                y = HudTextUtil.renderStatLine(graphics, this.font, eggName, eggTimer,
+                        COLOR_TEXT, COLOR_TIMER_GREEN, y, panel.unscaledWidth, PADDING, LINE_HEIGHT);
 
                 graphics.fill(barX, y, barX + barWidth, y + 6, COLOR_TIMER_BAR_BG);
                 graphics.fill(barX, y, barX + (int)(barWidth * progress), y + 6, COLOR_TIMER_GREEN);
@@ -828,19 +1020,14 @@ public class HudConfigScreen extends Screen {
 
     private void renderCompactWtPreview(GuiGraphics graphics, PanelState panel) {
         int y = PADDING;
-        String prefix = "WT Time: ";
-        graphics.drawString(this.font, prefix, PADDING, y, COLOR_HEADER, true);
-        int textX = PADDING + this.font.width(prefix);
-        graphics.drawString(this.font, "42:15", textX, y, 0xFF55FF55, true);
+        HudTextUtil.renderStatLine(graphics, this.font, "WT Time:", "42:15",
+                COLOR_HEADER, 0xFF55FF55, y, panel.unscaledWidth, PADDING, LINE_HEIGHT);
     }
 
     private void renderFullWtPreview(GuiGraphics graphics, PanelState panel) {
         int y = PADDING;
 
-        String header = "SAA Wondertrade Helper";
-        int headerW = this.font.width(header);
-        graphics.drawString(this.font, header, (panel.unscaledWidth - headerW) / 2, y, COLOR_HEADER, true);
-        y += LINE_HEIGHT;
+        y = HudTextUtil.renderWrappedCentered(graphics, this.font, "SAA Wondertrade Helper", panel.unscaledWidth, y, COLOR_HEADER, LINE_HEIGHT);
 
         y += 2;
         graphics.fill(PADDING, y, panel.unscaledWidth - PADDING, y + 1, 0xFF555555);
@@ -891,22 +1078,10 @@ public class HudConfigScreen extends Screen {
             return true;
         }
 
-        if (groupState != null && isInsideGroup(mx, my) && dragMode == DragMode.NONE) {
-            int[] arrowHit = getReorderArrowHit(mx, my);
-            if (arrowHit != null) {
-                int idx = arrowHit[0];
-                int swapIdx = idx + arrowHit[1];
-                if (swapIdx >= 0 && swapIdx < groupState.members.size()) {
-                    PanelState temp = groupState.members.get(idx);
-                    groupState.members.set(idx, groupState.members.get(swapIdx));
-                    groupState.members.set(swapIdx, temp);
-                    groupState.recalculate();
-                }
-                return true;
-            }
-            int clickedUnjoinIndex = getUnjoinButtonIndex(mx, my);
-            if (clickedUnjoinIndex >= 0) {
-                unjoinPanel(clickedUnjoinIndex);
+        if (groupState != null && hoveredMemberIndex >= 0 && popupX >= 0 && dragMode == DragMode.NONE) {
+            int hit = getPopupButtonHit(mx, my);
+            if (hit != 0) {
+                handlePopupClick(hit);
                 return true;
             }
         }
@@ -915,6 +1090,11 @@ public class HudConfigScreen extends Screen {
             CornerHit groupCorner = getGroupCornerHit(mx, my);
             if (groupCorner != null) {
                 startGroupResize(groupCorner);
+                return true;
+            }
+            EdgeHit groupEdge = getGroupEdgeHit(mx, my);
+            if (groupEdge != null) {
+                startGroupEdgeResize(groupEdge);
                 return true;
             }
             if (isInsideGroup(mx, my)) {
@@ -932,6 +1112,13 @@ public class HudConfigScreen extends Screen {
             }
         }
         for (PanelState panel : ungrouped) {
+            EdgeHit edge = getEdgeHit(panel, mx, my);
+            if (edge != null) {
+                startEdgeResize(panel, edge);
+                return true;
+            }
+        }
+        for (PanelState panel : ungrouped) {
             if (isInsidePanel(panel, mx, my)) {
                 startMove(panel, mx, my);
                 return true;
@@ -944,10 +1131,19 @@ public class HudConfigScreen extends Screen {
     private void startResize(PanelState panel, CornerHit corner) {
         dragMode = DragMode.RESIZE;
         activePanel = panel;
+        activeEdge = null;
         resizeFromLeft = corner.fromLeft;
         resizeFromTop = corner.fromTop;
         resizeAnchorX = corner.fromLeft ? (panel.panelX + panel.scaledWidth) : panel.panelX;
         resizeAnchorY = corner.fromTop ? (panel.panelY + panel.scaledHeight) : panel.panelY;
+    }
+
+    private void startEdgeResize(PanelState panel, EdgeHit edge) {
+        dragMode = DragMode.RESIZE;
+        activePanel = panel;
+        activeEdge = edge;
+        resizeAnchorX = (edge == EdgeHit.LEFT) ? panel.panelX + panel.scaledWidth : panel.panelX;
+        resizeAnchorY = panel.panelY;
     }
 
     private void startMove(PanelState panel, int mx, int my) {
@@ -970,10 +1166,20 @@ public class HudConfigScreen extends Screen {
         dragMode = DragMode.RESIZE;
         draggingGroup = true;
         activePanel = null;
+        activeEdge = null;
         resizeFromLeft = corner.fromLeft;
         resizeFromTop = corner.fromTop;
         resizeAnchorX = corner.fromLeft ? (groupState.panelX + groupState.scaledWidth) : groupState.panelX;
         resizeAnchorY = corner.fromTop ? (groupState.panelY + groupState.scaledHeight) : groupState.panelY;
+    }
+
+    private void startGroupEdgeResize(EdgeHit edge) {
+        dragMode = DragMode.RESIZE;
+        draggingGroup = true;
+        activePanel = null;
+        activeEdge = edge;
+        resizeAnchorX = (edge == EdgeHit.LEFT) ? groupState.panelX + groupState.scaledWidth : groupState.panelX;
+        resizeAnchorY = groupState.panelY;
     }
 
     @Override
@@ -985,6 +1191,7 @@ public class HudConfigScreen extends Screen {
             dragMode = DragMode.NONE;
             activePanel = null;
             draggingGroup = false;
+            activeEdge = null;
             return true;
         }
         return super.mouseReleased(mouseX, mouseY, button);
@@ -1006,19 +1213,38 @@ public class HudConfigScreen extends Screen {
         }
 
         if (dragMode == DragMode.RESIZE && draggingGroup && groupState != null) {
-            float distX = resizeFromLeft ? resizeAnchorX - mx : mx - resizeAnchorX;
-            float newScale = distX / groupState.maxUnscaledWidth;
-            float maxFitScale = Math.min(
-                    (float) this.width / groupState.maxUnscaledWidth,
-                    (float) this.height / groupState.totalUnscaledHeight);
-            newScale = Math.clamp(newScale, MIN_SCALE, Math.min(MAX_SCALE, maxFitScale));
+            if (activeEdge != null) {
+                float distX = (activeEdge == EdgeHit.LEFT) ? resizeAnchorX - mx : mx - resizeAnchorX;
+                int newWidth = Math.max(40, Math.round(distX / groupState.scale));
+                groupState.widthOverride = newWidth;
+                groupState.maxUnscaledWidth = newWidth;
+                groupState.totalUnscaledHeight = 0;
+                for (PanelState member : groupState.members) {
+                    member.unscaledWidth = newWidth;
+                    member.unscaledHeight = placeholderHeightForWidth(member, newWidth);
+                    groupState.totalUnscaledHeight += member.unscaledHeight;
+                }
+            } else {
+                float distX = resizeFromLeft ? resizeAnchorX - mx : mx - resizeAnchorX;
+                float newScale = Math.clamp(distX / groupState.maxUnscaledWidth, MIN_SCALE,
+                        Math.min(MAX_SCALE, Math.min(
+                                (float) this.width / groupState.maxUnscaledWidth,
+                                (float) this.height / groupState.totalUnscaledHeight)));
+                groupState.scale = newScale;
+            }
+            groupState.scaledWidth = Math.round(groupState.maxUnscaledWidth * groupState.scale);
+            groupState.scaledHeight = Math.round(groupState.totalUnscaledHeight * groupState.scale);
 
-            groupState.currentScale = newScale;
-            groupState.scaledWidth = Math.round(groupState.maxUnscaledWidth * newScale);
-            groupState.scaledHeight = Math.round(groupState.totalUnscaledHeight * newScale);
-
-            groupState.panelX = resizeFromLeft ? resizeAnchorX - groupState.scaledWidth : resizeAnchorX;
-            groupState.panelY = resizeFromTop ? resizeAnchorY - groupState.scaledHeight : resizeAnchorY;
+            if (activeEdge == EdgeHit.LEFT || (!isEdgeDrag() && resizeFromLeft)) {
+                groupState.panelX = resizeAnchorX - groupState.scaledWidth;
+            } else if (!isEdgeDrag()) {
+                groupState.panelX = resizeFromLeft ? resizeAnchorX - groupState.scaledWidth : resizeAnchorX;
+            }
+            if (!isEdgeDrag() && resizeFromTop) {
+                groupState.panelY = resizeAnchorY - groupState.scaledHeight;
+            } else if (!isEdgeDrag()) {
+                groupState.panelY = resizeFromTop ? resizeAnchorY - groupState.scaledHeight : resizeAnchorY;
+            }
 
             groupState.panelX = Math.clamp(groupState.panelX, 0,
                     Math.max(0, this.width - groupState.scaledWidth));
@@ -1036,18 +1262,32 @@ public class HudConfigScreen extends Screen {
         }
 
         if (dragMode == DragMode.RESIZE && activePanel != null) {
-            float distX = resizeFromLeft ? resizeAnchorX - mx : mx - resizeAnchorX;
-            float newScale = distX / activePanel.unscaledWidth;
-            float maxFitScale = Math.min(
-                    (float) this.width / activePanel.unscaledWidth,
-                    (float) this.height / activePanel.unscaledHeight);
-            newScale = Math.clamp(newScale, MIN_SCALE, Math.min(MAX_SCALE, maxFitScale));
-
-            activePanel.currentScale = newScale;
+            if (activeEdge != null) {
+                float distX = (activeEdge == EdgeHit.LEFT) ? resizeAnchorX - mx : mx - resizeAnchorX;
+                int newWidth = Math.max(40, Math.round(distX / activePanel.scale));
+                activePanel.widthOverride = newWidth;
+                activePanel.unscaledWidth = newWidth;
+                activePanel.unscaledHeight = placeholderHeightForWidth(activePanel, newWidth);
+            } else {
+                float distX = resizeFromLeft ? resizeAnchorX - mx : mx - resizeAnchorX;
+                float newScale = Math.clamp(distX / activePanel.unscaledWidth, MIN_SCALE,
+                        Math.min(MAX_SCALE, Math.min(
+                                (float) this.width / activePanel.unscaledWidth,
+                                (float) this.height / activePanel.unscaledHeight)));
+                activePanel.scale = newScale;
+            }
             activePanel.updateScaledDimensions();
 
-            activePanel.panelX = resizeFromLeft ? resizeAnchorX - activePanel.scaledWidth : resizeAnchorX;
-            activePanel.panelY = resizeFromTop ? resizeAnchorY - activePanel.scaledHeight : resizeAnchorY;
+            if (activeEdge == EdgeHit.LEFT || (!isEdgeDrag() && resizeFromLeft)) {
+                activePanel.panelX = resizeAnchorX - activePanel.scaledWidth;
+            } else if (!isEdgeDrag()) {
+                activePanel.panelX = resizeFromLeft ? resizeAnchorX - activePanel.scaledWidth : resizeAnchorX;
+            }
+            if (!isEdgeDrag() && resizeFromTop) {
+                activePanel.panelY = resizeAnchorY - activePanel.scaledHeight;
+            } else if (!isEdgeDrag()) {
+                activePanel.panelY = resizeFromTop ? resizeAnchorY - activePanel.scaledHeight : resizeAnchorY;
+            }
 
             activePanel.panelX = Math.clamp(activePanel.panelX, 0,
                     Math.max(0, this.width - activePanel.scaledWidth));
@@ -1062,25 +1302,29 @@ public class HudConfigScreen extends Screen {
     @Override
     public void onClose() {
         if (!isInGroup(safariPanel)) {
-            hudConfig.setHudScale(safariPanel.currentScale);
+            hudConfig.setHudScale(safariPanel.scale);
+            hudConfig.setHudWidthOverride(safariPanel.widthOverride);
             hudConfig.setPositionFromAbsolute(safariPanel.panelX, safariPanel.panelY,
                     safariPanel.scaledWidth, safariPanel.scaledHeight, this.width, this.height);
         }
 
         if (!isInGroup(daycarePanel)) {
-            hudConfig.setDaycareScale(daycarePanel.currentScale);
+            hudConfig.setDaycareScale(daycarePanel.scale);
+            hudConfig.setDaycareWidthOverride(daycarePanel.widthOverride);
             hudConfig.setDaycarePositionFromAbsolute(daycarePanel.panelX, daycarePanel.panelY,
                     daycarePanel.scaledWidth, daycarePanel.scaledHeight, this.width, this.height);
         }
 
         if (!isInGroup(wtPanel)) {
-            hudConfig.setWtScale(wtPanel.currentScale);
+            hudConfig.setWtScale(wtPanel.scale);
+            hudConfig.setWtWidthOverride(wtPanel.widthOverride);
             hudConfig.setWtPositionFromAbsolute(wtPanel.panelX, wtPanel.panelY,
                     wtPanel.scaledWidth, wtPanel.scaledHeight, this.width, this.height);
         }
 
         if (!isInGroup(cardStatsPanel)) {
-            hudConfig.setCardStatsScale(cardStatsPanel.currentScale);
+            hudConfig.setCardStatsScale(cardStatsPanel.scale);
+            hudConfig.setCardStatsWidthOverride(cardStatsPanel.widthOverride);
             hudConfig.setCardStatsPositionFromAbsolute(cardStatsPanel.panelX, cardStatsPanel.panelY,
                     cardStatsPanel.scaledWidth, cardStatsPanel.scaledHeight, this.width, this.height);
         }
@@ -1091,7 +1335,8 @@ public class HudConfigScreen extends Screen {
                 groupOrder.add(member.panelId);
             }
             hudConfig.setJoinedGroup(groupOrder);
-            hudConfig.setGroupScale(groupState.currentScale);
+            hudConfig.setGroupScale(groupState.scale);
+            hudConfig.setGroupWidthOverride(groupState.widthOverride);
             hudConfig.setGroupPositionFromAbsolute(groupState.panelX, groupState.panelY,
                     groupState.scaledWidth, groupState.scaledHeight, this.width, this.height);
         } else {
@@ -1122,6 +1367,34 @@ public class HudConfigScreen extends Screen {
             return new CornerHit(false, false);
         }
         return null;
+    }
+
+    private static final int EDGE_GRAB_ZONE = 6;
+
+    private EdgeHit getEdgeHit(PanelState panel, int mx, int my) {
+        int px = panel.panelX, py = panel.panelY;
+        int pw = panel.scaledWidth, ph = panel.scaledHeight;
+        if (getCornerHit(panel, mx, my) != null) return null;
+        if (mx >= px - EDGE_GRAB_ZONE && mx <= px + EDGE_GRAB_ZONE && my > py + CORNER_GRAB_RADIUS && my < py + ph - CORNER_GRAB_RADIUS)
+            return EdgeHit.LEFT;
+        if (mx >= px + pw - EDGE_GRAB_ZONE && mx <= px + pw + EDGE_GRAB_ZONE && my > py + CORNER_GRAB_RADIUS && my < py + ph - CORNER_GRAB_RADIUS)
+            return EdgeHit.RIGHT;
+        return null;
+    }
+
+    private EdgeHit getGroupEdgeHit(int mx, int my) {
+        int px = groupState.panelX, py = groupState.panelY;
+        int pw = groupState.scaledWidth, ph = groupState.scaledHeight;
+        if (getGroupCornerHit(mx, my) != null) return null;
+        if (mx >= px - EDGE_GRAB_ZONE && mx <= px + EDGE_GRAB_ZONE && my > py + CORNER_GRAB_RADIUS && my < py + ph - CORNER_GRAB_RADIUS)
+            return EdgeHit.LEFT;
+        if (mx >= px + pw - EDGE_GRAB_ZONE && mx <= px + pw + EDGE_GRAB_ZONE && my > py + CORNER_GRAB_RADIUS && my < py + ph - CORNER_GRAB_RADIUS)
+            return EdgeHit.RIGHT;
+        return null;
+    }
+
+    private boolean isEdgeDrag() {
+        return activeEdge != null;
     }
 
     private boolean isInsidePanel(PanelState panel, int mx, int my) {
@@ -1176,50 +1449,6 @@ public class HudConfigScreen extends Screen {
         return overlapX * overlapY;
     }
 
-    private int getUnjoinButtonIndex(int mx, int my) {
-        float scale = groupState.currentScale;
-        int currentY = 0;
-
-        for (int i = 0; i < groupState.members.size(); i++) {
-            currentY += groupState.members.get(i).unscaledHeight;
-
-            int buttonCenterX = groupState.panelX + groupState.scaledWidth / 2;
-            int buttonCenterY = groupState.panelY + Math.round(currentY * scale);
-
-            int hs = UNJOIN_BUTTON_SIZE / 2 + 1;
-            if (Math.abs(mx - buttonCenterX) <= hs && Math.abs(my - buttonCenterY) <= hs) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private int[] getReorderArrowHit(int mx, int my) {
-        float scale = groupState.currentScale;
-        int currentY = 0;
-
-        for (int i = 0; i < groupState.members.size(); i++) {
-            currentY += groupState.members.get(i).unscaledHeight;
-
-            int buttonCenterY = groupState.panelY + Math.round(currentY * scale);
-            int arrowX = groupState.panelX + groupState.scaledWidth - 12;
-
-            if (i > 0) {
-                int ay = buttonCenterY - 7;
-                if (mx >= arrowX - 1 && mx <= arrowX + 8 && my >= ay - 1 && my <= ay + 5) {
-                    return new int[]{i, -1};
-                }
-            }
-            if (i < groupState.members.size() - 1) {
-                int ay = buttonCenterY + 3;
-                if (mx >= arrowX - 1 && mx <= arrowX + 8 && my >= ay - 1 && my <= ay + 5) {
-                    return new int[]{i, 1};
-                }
-            }
-        }
-        return null;
-    }
-
     private void checkJoinOnRelease(PanelState dropped) {
         if (groupState != null) {
             int overlap = getOverlapArea(
@@ -1255,7 +1484,8 @@ public class HudConfigScreen extends Screen {
         int targetCenterY = target.panelY + target.scaledHeight / 2;
 
         groupState = new GroupState();
-        groupState.currentScale = target.currentScale;
+        groupState.scale = target.scale;
+        groupState.widthOverride = 0;
 
         if (droppedCenterY < targetCenterY) {
             groupState.members.add(dropped);
@@ -1265,7 +1495,8 @@ public class HudConfigScreen extends Screen {
             groupState.members.add(dropped);
         }
 
-        dropped.currentScale = target.currentScale;
+        dropped.scale = target.scale;
+        dropped.widthOverride = 0;
         dropped.updateScaledDimensions();
         target.updateScaledDimensions();
 
@@ -1280,7 +1511,8 @@ public class HudConfigScreen extends Screen {
     private void addToGroup(PanelState dropped) {
         boolean compact = hudConfig.isCompact();
 
-        dropped.currentScale = groupState.currentScale;
+        dropped.scale = groupState.scale;
+        dropped.widthOverride = 0;
         dropped.updateScaledDimensions();
 
         int droppedCenterY = dropped.panelY + dropped.scaledHeight / 2;
@@ -1299,9 +1531,8 @@ public class HudConfigScreen extends Screen {
     }
 
     private void unjoinPanel(int memberIndex) {
-        boolean compact = hudConfig.isCompact();
         PanelState removed = groupState.members.remove(memberIndex);
-        float prevGroupScale = groupState.currentScale;
+        float prevGroupScale = groupState.scale;
         int prevGroupX = groupState.panelX;
         int prevGroupY = groupState.panelY;
         int prevGroupWidth = groupState.scaledWidth;
@@ -1309,17 +1540,19 @@ public class HudConfigScreen extends Screen {
         if (groupState.members.size() <= 1) {
             if (!groupState.members.isEmpty()) {
                 PanelState remaining = groupState.members.get(0);
-                remaining.currentScale = prevGroupScale;
+                remaining.scale = prevGroupScale;
                 remaining.updateScaledDimensions();
                 remaining.panelX = prevGroupX;
                 remaining.panelY = prevGroupY;
             }
             groupState = null;
+            hoveredMemberIndex = -1;
+            popupX = -1;
         } else {
             groupState.recalculate();
         }
 
-        removed.currentScale = prevGroupScale;
+        removed.scale = prevGroupScale;
         removed.updateScaledDimensions();
         int offsetX = prevGroupX + prevGroupWidth + 10;
         removed.panelX = Math.clamp(offsetX, 0, Math.max(0, this.width - removed.scaledWidth));
@@ -1372,38 +1605,62 @@ public class HudConfigScreen extends Screen {
     }
 
     private void resetPositions() {
+        boolean compact = hudConfig.isCompact();
         groupState = null;
 
-        safariPanel.currentScale = 1.0f;
+        safariPanel.scale = 1.0f;
+        safariPanel.widthOverride = 0;
+        safariPanel.unscaledWidth = placeholderSafariWidth(compact);
+        safariPanel.unscaledHeight = placeholderSafariHeight(compact);
         safariPanel.updateScaledDimensions();
         safariPanel.panelX = this.width - safariPanel.scaledWidth - 5;
         safariPanel.panelY = 5;
 
-        daycarePanel.currentScale = 1.0f;
+        daycarePanel.scale = 1.0f;
+        daycarePanel.widthOverride = 0;
+        daycarePanel.unscaledWidth = placeholderDaycareWidth(compact);
+        daycarePanel.unscaledHeight = placeholderDaycareHeight(compact);
         daycarePanel.updateScaledDimensions();
         daycarePanel.panelX = 5;
         daycarePanel.panelY = 5;
 
-        wtPanel.currentScale = 1.0f;
+        wtPanel.scale = 1.0f;
+        wtPanel.widthOverride = 0;
+        wtPanel.unscaledWidth = placeholderWtWidth(compact);
+        wtPanel.unscaledHeight = placeholderWtHeight(compact);
         wtPanel.updateScaledDimensions();
         wtPanel.panelX = this.width - wtPanel.scaledWidth - 5;
         wtPanel.panelY = this.height - wtPanel.scaledHeight - 5;
 
-        cardStatsPanel.currentScale = 1.0f;
+        cardStatsPanel.scale = 1.0f;
+        cardStatsPanel.widthOverride = 0;
+        cardStatsPanel.unscaledWidth = placeholderCardStatsWidth(compact);
+        cardStatsPanel.unscaledHeight = placeholderCardStatsHeight(compact);
         cardStatsPanel.updateScaledDimensions();
         cardStatsPanel.panelX = 5;
         cardStatsPanel.panelY = this.height - cardStatsPanel.scaledHeight - 5;
     }
 
     private void resetScales() {
+        boolean compact = hudConfig.isCompact();
+
         if (groupState != null) {
-            groupState.currentScale = 1.0f;
+            groupState.scale = 1.0f;
+            groupState.widthOverride = 0;
+            for (PanelState member : groupState.members) {
+                member.widthOverride = 0;
+                member.unscaledWidth = placeholderWidthForPanel(member, compact);
+                member.unscaledHeight = placeholderHeightForPanel(member, compact);
+            }
             groupState.recalculate();
         }
 
         for (PanelState panel : new PanelState[]{safariPanel, daycarePanel, wtPanel, cardStatsPanel}) {
             if (!isInGroup(panel)) {
-                panel.currentScale = 1.0f;
+                panel.scale = 1.0f;
+                panel.widthOverride = 0;
+                panel.unscaledWidth = placeholderWidthForPanel(panel, compact);
+                panel.unscaledHeight = placeholderHeightForPanel(panel, compact);
                 panel.updateScaledDimensions();
             }
         }
@@ -1439,10 +1696,8 @@ public class HudConfigScreen extends Screen {
                 {"Armor", "+2%"},
         };
         for (String[] stat : playerStats) {
-            graphics.drawString(this.font, stat[0], PADDING + 2, y, COLOR_TEXT, true);
-            int valW = this.font.width(stat[1]);
-            graphics.drawString(this.font, stat[1], panel.unscaledWidth - PADDING - valW, y, 0xFF55FF55, true);
-            y += LINE_HEIGHT;
+            y = HudTextUtil.renderStatLine(graphics, this.font, stat[0], stat[1],
+                    COLOR_TEXT, 0xFF55FF55, y, panel.unscaledWidth, PADDING, LINE_HEIGHT);
         }
 
         graphics.drawString(this.font, "Cards", PADDING, y, COLOR_SECTION_HEADER, true);
@@ -1454,10 +1709,8 @@ public class HudConfigScreen extends Screen {
                 {"Type Spawn Chance", "+3%"},
         };
         for (String[] stat : cardStats) {
-            graphics.drawString(this.font, stat[0], PADDING + 2, y, COLOR_TEXT, true);
-            int valW = this.font.width(stat[1]);
-            graphics.drawString(this.font, stat[1], panel.unscaledWidth - PADDING - valW, y, 0xFF55FF55, true);
-            y += LINE_HEIGHT;
+            y = HudTextUtil.renderStatLine(graphics, this.font, stat[0], stat[1],
+                    COLOR_TEXT, 0xFF55FF55, y, panel.unscaledWidth, PADDING, LINE_HEIGHT);
         }
     }
 
@@ -1465,9 +1718,7 @@ public class HudConfigScreen extends Screen {
         int y = PADDING;
 
         String header = "SAA Stats";
-        int headerW = this.font.width(header);
-        graphics.drawString(this.font, header, (panel.unscaledWidth - headerW) / 2, y, COLOR_HEADER, true);
-        y += LINE_HEIGHT;
+        y = HudTextUtil.renderWrappedCentered(graphics, this.font, header, panel.unscaledWidth, y, COLOR_HEADER, LINE_HEIGHT);
 
         y += 2;
         graphics.fill(PADDING, y, panel.unscaledWidth - PADDING, y + 1, 0xFF555555);
@@ -1482,10 +1733,8 @@ public class HudConfigScreen extends Screen {
                 {"Armor", "+2%"},
         };
         for (String[] stat : playerStats) {
-            graphics.drawString(this.font, stat[0], PADDING + 2, y, COLOR_TEXT, true);
-            int valW = this.font.width(stat[1]);
-            graphics.drawString(this.font, stat[1], panel.unscaledWidth - PADDING - valW, y, 0xFF55FF55, true);
-            y += LINE_HEIGHT;
+            y = HudTextUtil.renderStatLine(graphics, this.font, stat[0], stat[1],
+                    COLOR_TEXT, 0xFF55FF55, y, panel.unscaledWidth, PADDING, LINE_HEIGHT);
         }
 
         y += 2;
@@ -1501,16 +1750,147 @@ public class HudConfigScreen extends Screen {
                 {"Type Spawn Chance", "+3%"},
         };
         for (String[] stat : cardStats) {
-            graphics.drawString(this.font, stat[0], PADDING + 2, y, COLOR_TEXT, true);
-            int valW = this.font.width(stat[1]);
-            graphics.drawString(this.font, stat[1], panel.unscaledWidth - PADDING - valW, y, 0xFF55FF55, true);
-            y += LINE_HEIGHT;
+            y = HudTextUtil.renderStatLine(graphics, this.font, stat[0], stat[1],
+                    COLOR_TEXT, 0xFF55FF55, y, panel.unscaledWidth, PADDING, LINE_HEIGHT);
         }
     }
 
     private int getPlaceholderPenCount() {
         int actual = daycareManager.getDisplayPens().size();
         return Math.max(actual, 2);
+    }
+
+    private int placeholderWidthForPanel(PanelState panel, boolean compact) {
+        if (panel == safariPanel) return placeholderSafariWidth(compact);
+        if (panel == daycarePanel) return placeholderDaycareWidth(compact);
+        if (panel == wtPanel) return placeholderWtWidth(compact);
+        if (panel == cardStatsPanel) return placeholderCardStatsWidth(compact);
+        return PANEL_MIN_WIDTH;
+    }
+
+    private int placeholderHeightForPanel(PanelState panel, boolean compact) {
+        if (panel == safariPanel) return placeholderSafariHeight(compact);
+        if (panel == daycarePanel) return placeholderDaycareHeight(compact);
+        if (panel == wtPanel) return placeholderWtHeight(compact);
+        if (panel == cardStatsPanel) return placeholderCardStatsHeight(compact);
+        return PADDING * 2 + LINE_HEIGHT;
+    }
+
+    private int placeholderHeightForWidth(PanelState panel, int width) {
+        boolean compact = hudConfig.isCompact();
+        int naturalWidth = placeholderWidthForPanel(panel, compact);
+
+        // If the width is >= natural, just use the standard height
+        if (width >= naturalWidth) {
+            return placeholderHeightForPanel(panel, compact);
+        }
+
+        // Otherwise, estimate the height with wrapping
+        if (panel == safariPanel) {
+            return placeholderSafariHeightForWidth(compact, width);
+        } else if (panel == daycarePanel) {
+            return placeholderDaycareHeightForWidth(compact, width);
+        } else if (panel == wtPanel) {
+            return placeholderWtHeightForWidth(compact, width);
+        } else if (panel == cardStatsPanel) {
+            return placeholderCardStatsHeightForWidth(compact, width);
+        }
+        return placeholderHeightForPanel(panel, compact);
+    }
+
+    private int placeholderSafariHeightForWidth(boolean compact, int width) {
+        if (compact) {
+            int height = PADDING;
+            height += HudTextUtil.wrappedCenteredHeight(this.font, "Safari: 24:31", width, LINE_HEIGHT);
+            for (int i = 0; i < SAFARI_MAX_HUNTS; i++) {
+                height += HudTextUtil.statLineHeight(this.font, "Electric Type", "[12/25] - 3h 20m", width, PADDING, LINE_HEIGHT);
+            }
+            height += PADDING;
+            return height;
+        } else {
+            int height = PADDING;
+            height += HudTextUtil.wrappedCenteredHeight(this.font, "SAA Safari Helper", width, LINE_HEIGHT);
+            height += TIMER_BAR_HEIGHT;
+            height += SECTION_SPACING * 2 + 1;
+            height += LINE_HEIGHT + 2;
+            height += SAFARI_MAX_HUNTS * (LINE_HEIGHT * 2);
+            height += PADDING;
+            return height;
+        }
+    }
+
+    private int placeholderDaycareHeightForWidth(boolean compact, int width) {
+        int maxEggs = hudConfig.getDaycareEggsHatchingSlots();
+        int penCount = getPlaceholderPenCount();
+
+        if (compact) {
+            int height = PADDING;
+            height += HudTextUtil.wrappedCenteredHeight(this.font, "Daycare", width, LINE_HEIGHT);
+            height += LINE_HEIGHT;            height += penCount * LINE_HEIGHT;
+            if (maxEggs > 0) {
+                height += LINE_HEIGHT;                height += maxEggs * LINE_HEIGHT;
+                height += LINE_HEIGHT; // Ready line
+            }
+            height += PADDING;
+            return height;
+        } else {
+            int height = PADDING;
+            height += HudTextUtil.wrappedCenteredHeight(this.font, "SAA Daycare Helper", width, LINE_HEIGHT);
+            height += 2 + SECTION_SPACING;
+            height += LINE_HEIGHT;            height += penCount * (LINE_HEIGHT + 8);
+            if (maxEggs > 0) {
+                height += 2 + SECTION_SPACING;
+                height += LINE_HEIGHT;
+                height += maxEggs * (LINE_HEIGHT + 8);
+                height += LINE_HEIGHT;
+            }
+            height += PADDING;
+            return height;
+        }
+    }
+
+    private int placeholderWtHeightForWidth(boolean compact, int width) {
+        if (compact) {
+            return PADDING + LINE_HEIGHT + PADDING;
+        } else {
+            int height = PADDING;
+            height += HudTextUtil.wrappedCenteredHeight(this.font, "SAA Wondertrade Helper", width, LINE_HEIGHT);
+            height += 2 + SECTION_SPACING;
+            height += HudTextUtil.wrappedCenteredHeight(this.font, "Please use WT once to set menu.", width, LINE_HEIGHT);
+            height += 6 + PADDING;
+            return height;
+        }
+    }
+
+    private int placeholderCardStatsHeightForWidth(boolean compact, int width) {
+        String[][] playerStats = {{"Movement Speed", "+13.6%"}, {"Block Reach", "+0.45"}, {"Armor", "+2%"}};
+        String[][] cardStats = {{"Capture XP", "+5%"}, {"Shiny Chance", "+2%"}, {"Type Spawn Chance", "+3%"}};
+
+        if (compact) {
+            int height = PADDING;
+            height += LINE_HEIGHT;
+            height += LINE_HEIGHT;            for (String[] stat : playerStats) {
+                height += HudTextUtil.statLineHeight(this.font, stat[0], stat[1], width, PADDING, LINE_HEIGHT);
+            }
+            height += LINE_HEIGHT;            for (String[] stat : cardStats) {
+                height += HudTextUtil.statLineHeight(this.font, stat[0], stat[1], width, PADDING, LINE_HEIGHT);
+            }
+            height += PADDING;
+            return height;
+        } else {
+            int height = PADDING;
+            height += HudTextUtil.wrappedCenteredHeight(this.font, "SAA Stats", width, LINE_HEIGHT);
+            height += 2 + SECTION_SPACING;
+            height += LINE_HEIGHT;            for (String[] stat : playerStats) {
+                height += HudTextUtil.statLineHeight(this.font, stat[0], stat[1], width, PADDING, LINE_HEIGHT);
+            }
+            height += 2 + SECTION_SPACING;
+            height += LINE_HEIGHT;            for (String[] stat : cardStats) {
+                height += HudTextUtil.statLineHeight(this.font, stat[0], stat[1], width, PADDING, LINE_HEIGHT);
+            }
+            height += PADDING;
+            return height;
+        }
     }
 
     private int placeholderSafariWidth(boolean compact) {
@@ -1664,27 +2044,4 @@ public class HudConfigScreen extends Screen {
         return Math.abs(mx - px) <= radius && Math.abs(my - py) <= radius;
     }
 
-    private static List<String> wrapText(Font font, String text, int maxWidth) {
-        List<String> lines = new ArrayList<>();
-        String[] words = text.split(" ");
-        StringBuilder current = new StringBuilder();
-
-        for (String word : words) {
-            if (current.isEmpty()) {
-                current.append(word);
-            } else {
-                String test = current + " " + word;
-                if (font.width(test) > maxWidth) {
-                    lines.add(current.toString());
-                    current = new StringBuilder(word);
-                } else {
-                    current.append(" ").append(word);
-                }
-            }
-        }
-        if (!current.isEmpty()) {
-            lines.add(current.toString());
-        }
-        return lines;
-    }
 }

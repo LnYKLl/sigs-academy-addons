@@ -59,11 +59,18 @@ public class HudGroupRenderer {
 
         boolean transparent = hudConfig.getHudStyle() == HudConfig.HudStyle.TRANSPARENT;
 
+        int widthOvr = hudConfig.getGroupWidthOverride();
         int maxContentWidth = 0;
-        List<Integer> contentHeights = new ArrayList<>();
         for (HudPanel panel : visiblePanels) {
             maxContentWidth = Math.max(maxContentWidth, panel.getContentWidth(font));
-            contentHeights.add(panel.getContentHeight(font));
+        }
+        if (widthOvr > 0) {
+            maxContentWidth = widthOvr;
+        }
+
+        List<Integer> contentHeights = new ArrayList<>();
+        for (HudPanel panel : visiblePanels) {
+            contentHeights.add(panel.getContentHeight(font, maxContentWidth));
         }
 
         int totalHeight = 0;

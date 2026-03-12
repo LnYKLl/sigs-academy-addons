@@ -16,6 +16,10 @@ public interface HudPanel {
 
     int getContentHeight(Font font);
 
+    default int getContentHeight(Font font, int panelWidth) {
+        return getContentHeight(font);
+    }
+
     void renderContent(GuiGraphics graphics, Font font, int panelWidth);
 
     void onHudRender(GuiGraphics graphics, DeltaTracker deltaTracker);

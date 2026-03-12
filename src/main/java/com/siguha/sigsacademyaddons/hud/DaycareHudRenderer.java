@@ -39,7 +39,6 @@ public class DaycareHudRenderer implements HudPanel {
 
     private final DaycareManager daycareManager;
     private final HudConfig hudConfig;
-    private int lastPanelWidth = PANEL_MIN_WIDTH;
 
     public DaycareHudRenderer(DaycareManager daycareManager, HudConfig hudConfig) {
         this.daycareManager = daycareManager;
@@ -105,6 +104,32 @@ public class DaycareHudRenderer implements HudPanel {
     }
 
     @Override
+    public int getContentHeight(Font font, int panelWidth) {
+        List<DaycareState.PenState> displayPens = daycareManager.getDisplayPens();
+        List<DaycareState.ClaimedEgg> displayEggs = daycareManager.getDisplayEggs();
+        int totalActiveEggs = daycareManager.getTotalActiveEggs();
+        int maxDisplayEggs = hudConfig.getDaycareEggsHatchingSlots();
+        boolean compact = hudConfig.isCompact();
+
+        if (displayPens.isEmpty() && displayEggs.isEmpty()) {
+            if (compact) {
+                return PADDING + LINE_HEIGHT + HudTextUtil.wrappedCenteredHeight(font, EMPTY_MESSAGE_COMPACT, panelWidth, LINE_HEIGHT) + PADDING;
+            } else {
+                int h = PADDING;
+                h += HudTextUtil.wrappedCenteredHeight(font, "SAA Daycare Helper", panelWidth, LINE_HEIGHT);
+                h += 2 + SECTION_SPACING;
+                h += HudTextUtil.wrappedCenteredHeight(font, EMPTY_MESSAGE_FULL, panelWidth, LINE_HEIGHT);
+                h += PADDING;
+                return h;
+            }
+        }
+
+        return compact
+                ? calculateCompactPanelHeightForWidth(font, panelWidth, displayPens, displayEggs, totalActiveEggs, maxDisplayEggs)
+                : calculatePanelHeightForWidth(font, panelWidth, displayPens, displayEggs, totalActiveEggs, maxDisplayEggs);
+    }
+
+    @Override
     public void renderContent(GuiGraphics graphics, Font font, int panelWidth) {
         List<DaycareState.PenState> displayPens = daycareManager.getDisplayPens();
         List<DaycareState.ClaimedEgg> displayEggs = daycareManager.getDisplayEggs();
@@ -151,9 +176,9 @@ public class DaycareHudRenderer implements HudPanel {
 
         boolean transparent = hudConfig.getHudStyle() == HudConfig.HudStyle.TRANSPARENT;
 
-        int panelWidth = getContentWidth(font);
-        int panelHeight = getContentHeight(font);
-        lastPanelWidth = panelWidth;
+        int widthOvr = hudConfig.getDaycareWidthOverride();
+        int panelWidth = widthOvr > 0 ? widthOvr : getContentWidth(font);
+        int panelHeight = getContentHeight(font, panelWidth);
 
         int scaledWidth = Math.round(panelWidth * scale);
         int scaledHeight = Math.round(panelHeight * scale);
@@ -221,22 +246,19 @@ public class DaycareHudRenderer implements HudPanel {
         int currentY = PADDING;
         graphics.drawString(font, "Daycare", PADDING, currentY, COLOR_HEADER, true);
         currentY += LINE_HEIGHT;
-        graphics.drawString(font, EMPTY_MESSAGE_COMPACT, PADDING, currentY, COLOR_TEXT_UNSET, true);
+        HudTextUtil.renderWrappedCentered(graphics, font, EMPTY_MESSAGE_COMPACT, panelWidth, currentY, COLOR_TEXT_UNSET, LINE_HEIGHT);
     }
 
     private void renderFullEmpty(GuiGraphics graphics, Font font, int panelWidth) {
         int currentY = PADDING;
         String header = "SAA Daycare Helper";
-        int headerWidth = font.width(header);
-        graphics.drawString(font, header, (panelWidth - headerWidth) / 2, currentY, COLOR_HEADER, true);
-        currentY += LINE_HEIGHT;
+        currentY = HudTextUtil.renderWrappedCentered(graphics, font, header, panelWidth, currentY, COLOR_HEADER, LINE_HEIGHT);
 
         currentY += 2;
         graphics.fill(PADDING, currentY, panelWidth - PADDING, currentY + 1, 0xFF555555);
         currentY += SECTION_SPACING;
 
-        int msgWidth = font.width(EMPTY_MESSAGE_FULL);
-        graphics.drawString(font, EMPTY_MESSAGE_FULL, (panelWidth - msgWidth) / 2, currentY, COLOR_TEXT_UNSET, true);
+        HudTextUtil.renderWrappedCentered(graphics, font, EMPTY_MESSAGE_FULL, panelWidth, currentY, COLOR_TEXT_UNSET, LINE_HEIGHT);
     }
 
     private int renderCompactPenEntry(GuiGraphics graphics, Font font, DaycareState.PenState pen,
@@ -251,30 +273,55 @@ public class DaycareHudRenderer implements HudPanel {
         switch (stage) {
             case EMPTY, ONE_POKEMON -> {
                 graphics.drawString(font, "Inactive", textX, y, COLOR_TEXT_INACTIVE, true);
+                y += LINE_HEIGHT;
             }
             case BREEDING, EGG_READY -> {
                 String species = getPenSpeciesLabel(pen);
-                graphics.drawString(font, species, textX, y, COLOR_TEXT_PRIMARY, true);
                 String timerText = pen.getRemainingFormatted();
                 float progress = pen.getProgress();
                 int timerColor = progress >= 1.0f ? COLOR_TIMER_SAFE : getTimerColor(progress);
+
                 if (!timerText.isEmpty()) {
-                    int tw = font.width(timerText);
-                    graphics.drawString(font, timerText, panelWidth - PADDING - tw, y, timerColor, true);
+                    int speciesW = font.width(species);
+                    int timerW = font.width(timerText);
+                    int available = panelWidth - textX - PADDING;
+                    if (speciesW + 8 + timerW <= available) {
+                        graphics.drawString(font, species, textX, y, COLOR_TEXT_PRIMARY, true);
+                        graphics.drawString(font, timerText, panelWidth - PADDING - timerW, y, timerColor, true);
+                        y += LINE_HEIGHT;
+                    } else {
+                        graphics.drawString(font, species, textX, y, COLOR_TEXT_PRIMARY, true);
+                        y += LINE_HEIGHT;
+                        graphics.drawString(font, timerText, panelWidth - PADDING - timerW, y, timerColor, true);
+                        y += LINE_HEIGHT;
+                    }
+                } else {
+                    graphics.drawString(font, species, textX, y, COLOR_TEXT_PRIMARY, true);
+                    y += LINE_HEIGHT;
                 }
             }
             case NEEDS_RESET -> {
                 String species = getPenSpeciesLabel(pen);
-                graphics.drawString(font, species, textX, y, COLOR_TEXT_PRIMARY, true);
                 String resetText = "Reset!";
-                int rw = font.width(resetText);
-                graphics.drawString(font, resetText, panelWidth - PADDING - rw, y, COLOR_NEEDS_RESET, true);
+                int speciesW = font.width(species);
+                int resetW = font.width(resetText);
+                int available = panelWidth - textX - PADDING;
+                if (speciesW + 8 + resetW <= available) {
+                    graphics.drawString(font, species, textX, y, COLOR_TEXT_PRIMARY, true);
+                    graphics.drawString(font, resetText, panelWidth - PADDING - resetW, y, COLOR_NEEDS_RESET, true);
+                    y += LINE_HEIGHT;
+                } else {
+                    graphics.drawString(font, species, textX, y, COLOR_TEXT_PRIMARY, true);
+                    y += LINE_HEIGHT;
+                    graphics.drawString(font, resetText, panelWidth - PADDING - resetW, y, COLOR_NEEDS_RESET, true);
+                    y += LINE_HEIGHT;
+                }
             }
             case INCOMPATIBLE -> {
                 graphics.drawString(font, "Incompatible", textX, y, COLOR_INCOMPATIBLE, true);
+                y += LINE_HEIGHT;
             }
         }
-        y += LINE_HEIGHT;
         return y;
     }
 
@@ -282,13 +329,10 @@ public class DaycareHudRenderer implements HudPanel {
                                        int startY, int panelWidth) {
         int y = startY;
         String label = egg.getDisplayLabel();
-        graphics.drawString(font, label, PADDING + 2, y, COLOR_TEXT_PRIMARY, true);
         String timerText = egg.getRemainingFormatted();
         int timerColor = getTimerColor(egg.getProgress());
-        int tw = font.width(timerText);
-        graphics.drawString(font, timerText, panelWidth - PADDING - tw, y, timerColor, true);
-        y += LINE_HEIGHT;
-        return y;
+        return HudTextUtil.renderStatLine(graphics, font, label, timerText,
+                COLOR_TEXT_PRIMARY, timerColor, y, panelWidth, PADDING, LINE_HEIGHT);
     }
 
     private void renderFull(GuiGraphics graphics, Font font, int panelWidth,
@@ -298,9 +342,7 @@ public class DaycareHudRenderer implements HudPanel {
         int currentY = PADDING;
 
         String header = "SAA Daycare Helper";
-        int headerWidth = font.width(header);
-        graphics.drawString(font, header, (panelWidth - headerWidth) / 2, currentY, COLOR_HEADER, true);
-        currentY += LINE_HEIGHT;
+        currentY = HudTextUtil.renderWrappedCentered(graphics, font, header, panelWidth, currentY, COLOR_HEADER, LINE_HEIGHT);
 
         boolean hasAnyPen = !displayPens.isEmpty();
         if (hasAnyPen) {
@@ -358,33 +400,39 @@ public class DaycareHudRenderer implements HudPanel {
         int y = startY;
         DaycareState.BreedingStage stage = pen.getStage();
         String penLabel = "[PEN " + pen.getPenNumber() + "]";
+        int textX = PADDING + 2 + font.width(penLabel) + 4;
 
         switch (stage) {
             case EMPTY, ONE_POKEMON -> {
                 graphics.drawString(font, penLabel, PADDING + 2, y, COLOR_PEN_LABEL, true);
-                int textX = PADDING + 2 + font.width(penLabel) + 4;
                 graphics.drawString(font, "Inactive", textX, y, COLOR_TEXT_INACTIVE, true);
                 y += LINE_HEIGHT;
             }
 
             case BREEDING, EGG_READY -> {
                 String species = getPenSpeciesLabel(pen);
-
-                graphics.drawString(font, penLabel, PADDING + 2, y, COLOR_PEN_LABEL, true);
-                int speciesX = PADDING + 2 + font.width(penLabel) + 4;
-                graphics.drawString(font, species, speciesX, y, COLOR_TEXT_PRIMARY, true);
-
                 String timerText = pen.getRemainingFormatted();
                 float progress = pen.getProgress();
-
                 int timerColor = progress >= 1.0f ? COLOR_TIMER_SAFE : getTimerColor(progress);
 
+                graphics.drawString(font, penLabel, PADDING + 2, y, COLOR_PEN_LABEL, true);
+                graphics.drawString(font, species, textX, y, COLOR_TEXT_PRIMARY, true);
+
                 if (!timerText.isEmpty()) {
-                    int timerWidth = font.width(timerText);
-                    graphics.drawString(font, timerText, panelWidth - PADDING - timerWidth, y,
-                            timerColor, true);
+                    int speciesW = font.width(species);
+                    int timerW = font.width(timerText);
+                    int available = panelWidth - textX - PADDING;
+                    if (speciesW + 8 + timerW <= available) {
+                        graphics.drawString(font, timerText, panelWidth - PADDING - timerW, y, timerColor, true);
+                        y += LINE_HEIGHT;
+                    } else {
+                        y += LINE_HEIGHT;
+                        graphics.drawString(font, timerText, panelWidth - PADDING - timerW, y, timerColor, true);
+                        y += LINE_HEIGHT;
+                    }
+                } else {
+                    y += LINE_HEIGHT;
                 }
-                y += LINE_HEIGHT;
 
                 int barX = PADDING + 2;
                 int barWidth = panelWidth - barX - PADDING;
@@ -400,16 +448,22 @@ public class DaycareHudRenderer implements HudPanel {
 
             case NEEDS_RESET -> {
                 String species = getPenSpeciesLabel(pen);
+                String resetText = "Parents Need Reset!";
 
                 graphics.drawString(font, penLabel, PADDING + 2, y, COLOR_PEN_LABEL, true);
-                int speciesX = PADDING + 2 + font.width(penLabel) + 4;
-                graphics.drawString(font, species, speciesX, y, COLOR_TEXT_PRIMARY, true);
+                graphics.drawString(font, species, textX, y, COLOR_TEXT_PRIMARY, true);
 
-                String resetText = "Parents Need Reset!";
-                int resetWidth = font.width(resetText);
-                graphics.drawString(font, resetText, panelWidth - PADDING - resetWidth, y,
-                        COLOR_NEEDS_RESET, true);
-                y += LINE_HEIGHT;
+                int speciesW = font.width(species);
+                int resetW = font.width(resetText);
+                int available = panelWidth - textX - PADDING;
+                if (speciesW + 8 + resetW <= available) {
+                    graphics.drawString(font, resetText, panelWidth - PADDING - resetW, y, COLOR_NEEDS_RESET, true);
+                    y += LINE_HEIGHT;
+                } else {
+                    y += LINE_HEIGHT;
+                    graphics.drawString(font, resetText, panelWidth - PADDING - resetW, y, COLOR_NEEDS_RESET, true);
+                    y += LINE_HEIGHT;
+                }
 
                 int barX = PADDING + 2;
                 int barWidth = panelWidth - barX - PADDING;
@@ -419,10 +473,7 @@ public class DaycareHudRenderer implements HudPanel {
 
             case INCOMPATIBLE -> {
                 graphics.drawString(font, penLabel, PADDING + 2, y, COLOR_PEN_LABEL, true);
-                int textX = PADDING + 2 + font.width(penLabel) + 4;
-
-                String incompatText = "Incompatible Setup";
-                graphics.drawString(font, incompatText, textX, y, COLOR_INCOMPATIBLE, true);
+                graphics.drawString(font, "Incompatible Setup", textX, y, COLOR_INCOMPATIBLE, true);
                 y += LINE_HEIGHT;
 
                 int barX = PADDING + 2;
@@ -440,15 +491,11 @@ public class DaycareHudRenderer implements HudPanel {
         int y = startY;
 
         String label = egg.getDisplayLabel();
-        graphics.drawString(font, label, PADDING + 2, y, COLOR_TEXT_PRIMARY, true);
-
         String timerText = egg.getRemainingFormatted();
         int timerColor = getTimerColor(egg.getProgress());
-        int timerWidth = font.width(timerText);
-        graphics.drawString(font, timerText, panelWidth - PADDING - timerWidth, y,
-                timerColor, true);
 
-        y += LINE_HEIGHT;
+        y = HudTextUtil.renderStatLine(graphics, font, label, timerText,
+                COLOR_TEXT_PRIMARY, timerColor, y, panelWidth, PADDING, LINE_HEIGHT);
 
         int barX = PADDING + 2;
         int barWidth = panelWidth - barX - PADDING;
@@ -615,6 +662,128 @@ public class DaycareHudRenderer implements HudPanel {
             if (extraEggs > 0) {
                 height += LINE_HEIGHT;
             }
+        }
+
+        height += PADDING;
+        return height;
+    }
+
+    private int compactPenEntryHeight(Font font, DaycareState.PenState pen, int panelWidth) {
+        DaycareState.BreedingStage stage = pen.getStage();
+        String penLabel = "[PEN " + pen.getPenNumber() + "]";
+        int textX = PADDING + 2 + font.width(penLabel) + 4;
+        int available = panelWidth - textX - PADDING;
+
+        switch (stage) {
+            case BREEDING, EGG_READY -> {
+                String species = getPenSpeciesLabel(pen);
+                String timerText = pen.getRemainingFormatted();
+                if (!timerText.isEmpty()) {
+                    int speciesW = font.width(species);
+                    int timerW = font.width(timerText);
+                    return (speciesW + 8 + timerW <= available) ? LINE_HEIGHT : LINE_HEIGHT * 2;
+                }
+                return LINE_HEIGHT;
+            }
+            case NEEDS_RESET -> {
+                String species = getPenSpeciesLabel(pen);
+                int speciesW = font.width(species);
+                int resetW = font.width("Reset!");
+                return (speciesW + 8 + resetW <= available) ? LINE_HEIGHT : LINE_HEIGHT * 2;
+            }
+            default -> {
+                return LINE_HEIGHT;
+            }
+        }
+    }
+
+    private int fullPenEntryHeight(Font font, DaycareState.PenState pen, int panelWidth) {
+        DaycareState.BreedingStage stage = pen.getStage();
+        String penLabel = "[PEN " + pen.getPenNumber() + "]";
+        int textX = PADDING + 2 + font.width(penLabel) + 4;
+        int available = panelWidth - textX - PADDING;
+
+        switch (stage) {
+            case EMPTY, ONE_POKEMON -> {
+                return LINE_HEIGHT;
+            }
+            case BREEDING, EGG_READY -> {
+                String species = getPenSpeciesLabel(pen);
+                String timerText = pen.getRemainingFormatted();
+                int textLines = LINE_HEIGHT;
+                if (!timerText.isEmpty()) {
+                    int speciesW = font.width(species);
+                    int timerW = font.width(timerText);
+                    if (speciesW + 8 + timerW > available) {
+                        textLines = LINE_HEIGHT * 2;
+                    }
+                }
+                return textLines + TIMER_BAR_HEIGHT + 2;
+            }
+            case NEEDS_RESET -> {
+                String species = getPenSpeciesLabel(pen);
+                int speciesW = font.width(species);
+                int resetW = font.width("Parents Need Reset!");
+                int textLines = (speciesW + 8 + resetW <= available) ? LINE_HEIGHT : LINE_HEIGHT * 2;
+                return textLines + TIMER_BAR_HEIGHT + 2;
+            }
+            case INCOMPATIBLE -> {
+                return LINE_HEIGHT + TIMER_BAR_HEIGHT + 2;
+            }
+            default -> {
+                return LINE_HEIGHT;
+            }
+        }
+    }
+
+    private int calculateCompactPanelHeightForWidth(Font font, int panelWidth,
+                                                     List<DaycareState.PenState> pens,
+                                                     List<DaycareState.ClaimedEgg> eggs,
+                                                     int totalActiveEggs, int maxDisplayEggs) {
+        int height = PADDING;
+        height += LINE_HEIGHT;
+        if (!pens.isEmpty()) {
+            height += LINE_HEIGHT;            for (DaycareState.PenState pen : pens) {
+                height += compactPenEntryHeight(font, pen, panelWidth);
+            }
+        }
+
+        if (maxDisplayEggs > 0 && !eggs.isEmpty()) {
+            height += LINE_HEIGHT;            for (DaycareState.ClaimedEgg egg : eggs) {
+                height += HudTextUtil.statLineHeight(font, egg.getDisplayLabel(),
+                        egg.getRemainingFormatted(), panelWidth, PADDING, LINE_HEIGHT);
+            }
+            int extraEggs = totalActiveEggs - eggs.size();
+            if (extraEggs > 0) height += LINE_HEIGHT;
+        }
+
+        height += PADDING;
+        return height;
+    }
+
+    private int calculatePanelHeightForWidth(Font font, int panelWidth,
+                                              List<DaycareState.PenState> pens,
+                                              List<DaycareState.ClaimedEgg> eggs,
+                                              int totalActiveEggs, int maxDisplayEggs) {
+        int height = PADDING;
+        height += HudTextUtil.wrappedCenteredHeight(font, "SAA Daycare Helper", panelWidth, LINE_HEIGHT);
+
+        if (!pens.isEmpty()) {
+            height += 2 + SECTION_SPACING;
+            height += LINE_HEIGHT;            for (DaycareState.PenState pen : pens) {
+                height += fullPenEntryHeight(font, pen, panelWidth);
+            }
+        }
+
+        if (maxDisplayEggs > 0 && !eggs.isEmpty()) {
+            height += 2 + SECTION_SPACING;
+            height += LINE_HEIGHT;            for (DaycareState.ClaimedEgg egg : eggs) {
+                height += HudTextUtil.statLineHeight(font, egg.getDisplayLabel(),
+                        egg.getRemainingFormatted(), panelWidth, PADDING, LINE_HEIGHT);
+                height += TIMER_BAR_HEIGHT + 2;
+            }
+            int extraEggs = totalActiveEggs - eggs.size();
+            if (extraEggs > 0) height += LINE_HEIGHT;
         }
 
         height += PADDING;

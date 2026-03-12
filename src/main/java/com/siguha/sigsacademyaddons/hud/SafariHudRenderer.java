@@ -114,6 +114,20 @@ public class SafariHudRenderer implements HudPanel {
     }
 
     @Override
+    public int getContentHeight(Font font, int panelWidth) {
+        boolean[] vis = computeVisibility();
+        boolean showTimer = vis[0];
+        boolean showHunts = vis[1];
+        boolean compact = hudConfig.isCompact();
+
+        if (compact) {
+            return calculateCompactPanelHeight(font, panelWidth, showTimer, showHunts);
+        } else {
+            return calculatePanelHeight(font, panelWidth, showTimer, showHunts);
+        }
+    }
+
+    @Override
     public void renderContent(GuiGraphics graphics, Font font, int panelWidth) {
         boolean[] vis = computeVisibility();
         boolean showTimer = vis[0];
@@ -155,9 +169,15 @@ public class SafariHudRenderer implements HudPanel {
         boolean showHunts = vis[1];
         boolean compact = hudConfig.isCompact();
 
-        int panelWidth = compact
-                ? calculateCompactPanelWidth(font, showTimer)
-                : calculatePanelWidth(font, showTimer);
+        int widthOvr = hudConfig.getHudWidthOverride();
+        int panelWidth;
+        if (widthOvr > 0) {
+            panelWidth = widthOvr;
+        } else {
+            panelWidth = compact
+                    ? calculateCompactPanelWidth(font, showTimer)
+                    : calculatePanelWidth(font, showTimer);
+        }
         int panelHeight = compact
                 ? calculateCompactPanelHeight(font, panelWidth, showTimer, showHunts)
                 : calculatePanelHeight(font, panelWidth, showTimer, showHunts);
@@ -198,16 +218,12 @@ public class SafariHudRenderer implements HudPanel {
 
     private int renderCompactTimerLine(GuiGraphics graphics, Font font, int startY, int panelWidth) {
         int y = startY;
-        String prefix = safariManager.isInSafariZone() ? "Safari: " : "Safari (away): ";
-        graphics.drawString(font, prefix, PADDING, y, COLOR_HEADER, true);
-        int textX = PADDING + font.width(prefix);
-
+        String prefix = safariManager.isInSafariZone() ? "Safari:" : "Safari (away):";
         String timerText = safariManager.getRemainingTimeFormatted();
         float progress = safariManager.getTimerProgress();
         int timerColor = getTimerColor(progress);
-        graphics.drawString(font, timerText, textX, y, timerColor, true);
-        y += LINE_HEIGHT;
-        return y;
+        return HudTextUtil.renderStatLine(graphics, font, prefix, timerText,
+                COLOR_HEADER, timerColor, y, panelWidth, PADDING, LINE_HEIGHT);
     }
 
     private void renderCompactHuntSection(GuiGraphics graphics, Font font, int startY, int panelWidth) {
@@ -226,24 +242,18 @@ public class SafariHudRenderer implements HudPanel {
                 nameColor = COLOR_TEXT_PRIMARY;
             }
 
-            int px = PADDING;
-
-            graphics.drawString(font, hunt.getDisplayName(), px, y, nameColor, true);
-            px += font.width(hunt.getDisplayName()) + 4;
-
-            String countText = "[" + hunt.getCaught() + "/" + hunt.getTotal() + "]";
-            int countColor = hunt.isComplete() ? COLOR_PROGRESS_COMPLETE : COLOR_TEXT_SECONDARY;
-            graphics.drawString(font, countText, px, y, countColor, true);
-            px += font.width(countText);
-
+            String nameAndCount = hunt.getDisplayName() + " [" + hunt.getCaught() + "/" + hunt.getTotal() + "]";
             String resetText = hunt.getResetCountdownFormatted();
+
             if (!resetText.isEmpty()) {
                 String timerSuffix = " - " + resetText;
                 int resetColor = hunt.isResetExpired() ? COLOR_TIMER_DANGER : COLOR_RESET_TIMER;
-                graphics.drawString(font, timerSuffix, px, y, resetColor, true);
+                y = HudTextUtil.renderStatLine(graphics, font, nameAndCount, timerSuffix,
+                        nameColor, resetColor, y, panelWidth, PADDING, LINE_HEIGHT);
+            } else {
+                graphics.drawString(font, nameAndCount, PADDING, y, nameColor, true);
+                y += LINE_HEIGHT;
             }
-
-            y += LINE_HEIGHT;
         }
     }
 
@@ -276,9 +286,22 @@ public class SafariHudRenderer implements HudPanel {
 
     private int calculateCompactPanelHeight(Font font, int panelWidth, boolean showTimer, boolean showHunts) {
         int height = PADDING;
-        if (showTimer) height += LINE_HEIGHT;
+        if (showTimer) {
+            String prefix = safariManager.isInSafariZone() ? "Safari:" : "Safari (away):";
+            String timerText = safariManager.getRemainingTimeFormatted();
+            height += HudTextUtil.statLineHeight(font, prefix, timerText, panelWidth, PADDING, LINE_HEIGHT);
+        }
         if (showHunts) {
-            height += safariHuntManager.getActiveHunts().size() * LINE_HEIGHT;
+            List<SafariHuntData> hunts = safariHuntManager.getActiveHunts();
+            for (SafariHuntData hunt : hunts) {
+                String nameAndCount = hunt.getDisplayName() + " [" + hunt.getCaught() + "/" + hunt.getTotal() + "]";
+                String resetText = hunt.getResetCountdownFormatted();
+                if (!resetText.isEmpty()) {
+                    height += HudTextUtil.statLineHeight(font, nameAndCount, " - " + resetText, panelWidth, PADDING, LINE_HEIGHT);
+                } else {
+                    height += LINE_HEIGHT;
+                }
+            }
         } else if (showTimer) {
             height += LINE_HEIGHT;
         }
@@ -318,9 +341,7 @@ public class SafariHudRenderer implements HudPanel {
             header = "SAA Safari Helper (away)";
         }
 
-        int headerWidth = font.width(header);
-        graphics.drawString(font, header, (panelWidth - headerWidth) / 2, y, COLOR_HEADER, true);
-        y += LINE_HEIGHT;
+        y = HudTextUtil.renderWrappedCentered(graphics, font, header, panelWidth, y, COLOR_HEADER, LINE_HEIGHT);
 
         String timerText = safariManager.getRemainingTimeFormatted();
         float progress = safariManager.getTimerProgress();
@@ -388,17 +409,28 @@ public class SafariHudRenderer implements HudPanel {
             }
 
             int nameColor = hunt.isComplete() ? COLOR_PROGRESS_COMPLETE : COLOR_TEXT_PRIMARY;
-            graphics.drawString(font, hunt.getDisplayName(), nameX, y, nameColor, true);
-
             String resetText = hunt.getResetCountdownFormatted();
-            if (!resetText.isEmpty()) {
-                int resetColor = hunt.isResetExpired() ? COLOR_TIMER_DANGER : COLOR_RESET_TIMER;
-                int resetWidth = font.width(resetText);
-                graphics.drawString(font, resetText, panelWidth - PADDING - resetWidth, y,
-                        resetColor, true);
-            }
 
-            y += LINE_HEIGHT;
+            if (!resetText.isEmpty()) {
+                int nameW = font.width(hunt.getDisplayName());
+                int resetW = font.width(resetText);
+                int available = panelWidth - nameX - PADDING;
+                int resetColor = hunt.isResetExpired() ? COLOR_TIMER_DANGER : COLOR_RESET_TIMER;
+
+                if (nameW + 8 + resetW <= available) {
+                    graphics.drawString(font, hunt.getDisplayName(), nameX, y, nameColor, true);
+                    graphics.drawString(font, resetText, panelWidth - PADDING - resetW, y, resetColor, true);
+                    y += LINE_HEIGHT;
+                } else {
+                    graphics.drawString(font, hunt.getDisplayName(), nameX, y, nameColor, true);
+                    y += LINE_HEIGHT;
+                    graphics.drawString(font, resetText, panelWidth - PADDING - resetW, y, resetColor, true);
+                    y += LINE_HEIGHT;
+                }
+            } else {
+                graphics.drawString(font, hunt.getDisplayName(), nameX, y, nameColor, true);
+                y += LINE_HEIGHT;
+            }
 
             int textX = PADDING + 4;
             String caughtStr = String.valueOf(hunt.getCaught());
@@ -460,7 +492,8 @@ public class SafariHudRenderer implements HudPanel {
         int height = PADDING;
 
         if (showTimer) {
-            height += LINE_HEIGHT;
+            String header = safariManager.isInSafariZone() ? "SAA Safari Helper" : "SAA Safari Helper (away)";
+            height += HudTextUtil.wrappedCenteredHeight(font, header, panelWidth, LINE_HEIGHT);
             height += TIMER_BAR_HEIGHT;
         }
 
@@ -470,7 +503,23 @@ public class SafariHudRenderer implements HudPanel {
 
         if (showHunts) {
             height += LINE_HEIGHT + 2;
-            height += safariHuntManager.getActiveHunts().size() * (LINE_HEIGHT * 2);
+            List<SafariHuntData> hunts = safariHuntManager.getActiveHunts();
+            for (SafariHuntData hunt : hunts) {
+                String resetText = hunt.getResetCountdownFormatted();
+                if (!resetText.isEmpty()) {
+                    int nameW = font.width(hunt.getDisplayName());
+                    int resetW = font.width(resetText);
+                    int available = panelWidth - PADDING * 2;
+                    if (nameW + 8 + resetW <= available) {
+                        height += LINE_HEIGHT;
+                    } else {
+                        height += LINE_HEIGHT * 2;
+                    }
+                } else {
+                    height += LINE_HEIGHT;
+                }
+                height += LINE_HEIGHT;
+            }
 
         } else if (showTimer) {
             int maxTextWidth = panelWidth - PADDING * 2;
@@ -489,26 +538,6 @@ public class SafariHudRenderer implements HudPanel {
     }
 
     private static List<String> wrapText(Font font, String text, int maxWidth) {
-        List<String> lines = new ArrayList<>();
-        String[] words = text.split(" ");
-        StringBuilder current = new StringBuilder();
-
-        for (String word : words) {
-            if (current.isEmpty()) {
-                current.append(word);
-            } else {
-                String test = current + " " + word;
-                if (font.width(test) > maxWidth) {
-                    lines.add(current.toString());
-                    current = new StringBuilder(word);
-                } else {
-                    current.append(" ").append(word);
-                }
-            }
-        }
-        if (!current.isEmpty()) {
-            lines.add(current.toString());
-        }
-        return lines;
+        return HudTextUtil.wrapText(font, text, maxWidth);
     }
 }

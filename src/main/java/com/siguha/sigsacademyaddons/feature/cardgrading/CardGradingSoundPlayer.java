@@ -26,10 +26,6 @@ public class CardGradingSoundPlayer {
         queueDingPattern();
     }
 
-    public void playTestSound() {
-        queueDingPattern();
-    }
-
     public void clearQueue() {
         noteQueue.clear();
     }

@@ -475,14 +475,6 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                 })
                         )
                         .then(ClientCommandManager.literal("grading")
-                                .then(ClientCommandManager.literal("testSound")
-                                        .executes(context -> {
-                                            cardGradingManager.playTestSound();
-                                            context.getSource().sendFeedback(
-                                                    Component.literal("\u00A7aPlayed card grading ding."));
-                                            return 1;
-                                        })
-                                )
                                 .then(ClientCommandManager.literal("clear")
                                         .executes(context -> {
                                             cardGradingManager.clearAll();
@@ -1374,7 +1366,6 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                     "\u00A7e/saa wt\u00A77 — View wondertrade status\n" +
                                     "\u00A7e/saa wt clear\u00A77 — Clear wondertrade timer\n" +
                                     "\u00A7e/saa grading\u00A77 — View card grading timer\n" +
-                                    "\u00A7e/saa grading testSound\u00A77 — Play the card grading ding\n" +
                                     "\u00A7e/saa grading clear\u00A77 — Clear card grading timer\n" +
                                     "\u00A7e/saa portal\u00A77 — View portal tracking status\n" +
                                     "\u00A7e/saa portal clear\u00A77 — Clear portal tracking data\n" +

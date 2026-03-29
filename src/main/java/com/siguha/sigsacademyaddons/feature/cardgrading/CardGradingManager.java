@@ -2,6 +2,12 @@ package com.siguha.sigsacademyaddons.feature.cardgrading;
 
 import com.siguha.sigsacademyaddons.SigsAcademyAddons;
 import com.siguha.sigsacademyaddons.data.CardGradingDataStore;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -82,10 +88,6 @@ public class CardGradingManager {
         soundPlayer.clearQueue();
     }
 
-    public void playTestSound() {
-        soundPlayer.playTestSound();
-    }
-
     public void tick() {
         soundPlayer.tick();
 
@@ -159,6 +161,24 @@ public class CardGradingManager {
 
         notifiedReady = true;
         soundPlayer.playReadySound();
+        sendReadyMessage();
+    }
+
+    private void sendReadyMessage() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) {
+            return;
+        }
+
+        MutableComponent msg = Component.literal("Your card grading is complete! - ")
+                .withStyle(ChatFormatting.GREEN)
+                .append(Component.literal("Click Here")
+                        .withStyle(Style.EMPTY
+                                .withColor(ChatFormatting.AQUA)
+                                .withUnderlined(true)
+                                .withClickEvent(new ClickEvent(
+                                        ClickEvent.Action.RUN_COMMAND, "/spawn"))));
+        client.player.sendSystemMessage(msg);
     }
 
     private AcademySnapshot readAcademySnapshot() {

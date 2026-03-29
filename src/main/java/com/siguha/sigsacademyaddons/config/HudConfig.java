@@ -79,6 +79,7 @@ public class HudConfig {
     private boolean daycareBabyGuards = true;
     private int daycareIvPercentLower = 60;
     private int daycareIvPercentUpper = 80;
+    private int daycareIvPercentTop = 90;
 
     private boolean driflootAlertsEnabled = true;
     private boolean gruntFinderEnabled = true;
@@ -510,6 +511,15 @@ public class HudConfig {
         save();
     }
 
+    public int getDaycareIvPercentTop() {
+        return daycareIvPercentTop;
+    }
+
+    public void setDaycareIvPercentTop(int value) {
+        this.daycareIvPercentTop = Math.max(0, Math.min(100, value));
+        save();
+    }
+
     public boolean isDriflootAlertsEnabled() {
         return driflootAlertsEnabled;
     }
@@ -720,7 +730,7 @@ public class HudConfig {
                     gruntFinderEnabled,
                     suppressInRaids, suppressInHideouts, suppressInDungeons,
                     suppressInBattles, hudHidden,
-                    daycareIvPercentLower, daycareIvPercentUpper,
+                    daycareIvPercentLower, daycareIvPercentUpper, daycareIvPercentTop,
                     hasSeenWelcome, messageNotificationSound,
                     cardStatsMenuEnabled, cardStatsDisplayAlways, cardStatsDisplayInInventory,
                     cardStatsAnchor.name(), cardStatsOffsetX, cardStatsOffsetY,
@@ -800,6 +810,8 @@ public class HudConfig {
                             ? Math.max(0, Math.min(100, data.daycareIvPercentLower)) : 60;
                     this.daycareIvPercentUpper = data.daycareIvPercentUpper != null
                             ? Math.max(0, Math.min(100, data.daycareIvPercentUpper)) : 80;
+                    this.daycareIvPercentTop = data.daycareIvPercentTop != null
+                            ? Math.max(0, Math.min(100, data.daycareIvPercentTop)) : 90;
                     this.hasSeenWelcome = data.hasSeenWelcome != null ? data.hasSeenWelcome : false;
                     this.messageNotificationSound = data.messageNotificationSound != null ? data.messageNotificationSound : true;
 
@@ -849,7 +861,7 @@ public class HudConfig {
             Boolean gruntFinderEnabled,
             Boolean suppressInRaids, Boolean suppressInHideouts, Boolean suppressInDungeons,
             Boolean suppressInBattles, Boolean hudHidden,
-            Integer daycareIvPercentLower, Integer daycareIvPercentUpper,
+            Integer daycareIvPercentLower, Integer daycareIvPercentUpper, Integer daycareIvPercentTop,
             Boolean hasSeenWelcome, Boolean messageNotificationSound,
             Boolean cardStatsMenuEnabled, Boolean cardStatsDisplayAlways, Boolean cardStatsDisplayInInventory,
             String cardStatsAnchor, Integer cardStatsOffsetX, Integer cardStatsOffsetY,

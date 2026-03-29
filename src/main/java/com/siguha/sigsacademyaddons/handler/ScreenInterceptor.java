@@ -18,6 +18,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -68,10 +69,15 @@ public class ScreenInterceptor {
 
     private static final int BABY_GUARD_DURATION = 100;
     private static final int BABY_GUARD_FADE_TICKS = 20;
+    private static final ResourceLocation SHINY_ICON_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath("cobblemon", "textures/gui/summary/icon_shiny.png");
+    private static final int SHINY_ICON_SIZE = 8;
 
     private final ParentIvOverlayRenderer ivOverlayRenderer = new ParentIvOverlayRenderer();
+    private final Set<Integer> backpackHighlightSlotsTop = new LinkedHashSet<>();
     private final Set<Integer> backpackHighlightSlotsUpper = new LinkedHashSet<>();
     private final Set<Integer> backpackHighlightSlotsLower = new LinkedHashSet<>();
+    private final Set<Integer> backpackHighlightSlotsShiny = new LinkedHashSet<>();
     private boolean backpackViewActive = false;
 
     private enum BabyGuardPhase { NONE, EGG_WARNING, BREEDING_WARNING, PARTY_FULL_WARNING }
@@ -112,8 +118,10 @@ public class ScreenInterceptor {
         isWtScreen = false;
         clearBabyGuard();
         ivOverlayRenderer.clear();
+        backpackHighlightSlotsTop.clear();
         backpackHighlightSlotsUpper.clear();
         backpackHighlightSlotsLower.clear();
+        backpackHighlightSlotsShiny.clear();
         backpackViewActive = false;
 
         ScreenEvents.remove(screen).register(removedScreen -> {
@@ -662,13 +670,16 @@ public class ScreenInterceptor {
     }
 
     private void scanBackpackIvSlots(AbstractContainerMenu menu) {
+        backpackHighlightSlotsTop.clear();
         backpackHighlightSlotsUpper.clear();
         backpackHighlightSlotsLower.clear();
+        backpackHighlightSlotsShiny.clear();
 
         HudConfig config = SigsAcademyAddonsClient.getHudConfig();
         if (config == null) return;
         int lower = config.getDaycareIvPercentLower();
-        int upper = config.getDaycareIvPercentUpper();
+        int upper = Math.max(lower, config.getDaycareIvPercentUpper());
+        int top = Math.max(upper, config.getDaycareIvPercentTop());
 
         for (Slot slot : menu.slots) {
             if (slot.container instanceof net.minecraft.world.entity.player.Inventory) continue;
@@ -688,10 +699,15 @@ public class ScreenInterceptor {
             ParentIvData ivData = ParentIvParser.parse(stack, name);
             if (ivData != null) {
                 int pct = ivData.getIvPercent();
-                if (pct >= upper) {
+                if (pct >= top) {
+                    backpackHighlightSlotsTop.add(slot.index);
+                } else if (pct >= upper) {
                     backpackHighlightSlotsUpper.add(slot.index);
                 } else if (pct >= lower) {
                     backpackHighlightSlotsLower.add(slot.index);
+                }
+                if (ivData.isShiny()) {
+                    backpackHighlightSlotsShiny.add(slot.index);
                 }
             }
         }
@@ -706,7 +722,7 @@ public class ScreenInterceptor {
         ContainerScreenAccessor accessor = (ContainerScreenAccessor) containerScreen;
         Font font = Minecraft.getInstance().font;
 
-        String label = "Filtering for " + config.getDaycareIvPercentLower() + "%+ IVs";
+        String label = "Highlighting " + config.getDaycareIvPercentLower() + "%+ IVs and shiny";
         int textWidth = font.width(label);
         int containerRight = accessor.getLeftPos() + accessor.getImageWidth();
 
@@ -722,29 +738,60 @@ public class ScreenInterceptor {
         graphics.pose().popPose();
     }
 
+    private static final int COLOR_HIGHLIGHT_TOP = 0x6655FF55;
     private static final int COLOR_HIGHLIGHT_UPPER = 0x44AA00FF;
     private static final int COLOR_HIGHLIGHT_LOWER = 0x66FFD700;
+    private static final int COLOR_HIGHLIGHT_SHINY = 0xFFF7D154;
 
     private void renderBackpackHighlights(AbstractContainerScreen<?> containerScreen, GuiGraphics graphics) {
-        if (backpackHighlightSlotsUpper.isEmpty() && backpackHighlightSlotsLower.isEmpty()) return;
+        if (backpackHighlightSlotsTop.isEmpty()
+                && backpackHighlightSlotsUpper.isEmpty()
+                && backpackHighlightSlotsLower.isEmpty()
+                && backpackHighlightSlotsShiny.isEmpty()) {
+            return;
+        }
 
         ContainerScreenAccessor accessor = (ContainerScreenAccessor) containerScreen;
         int leftPos = accessor.getLeftPos();
         int topPos = accessor.getTopPos();
 
         for (Slot slot : containerScreen.getMenu().slots) {
-            int color;
-            if (backpackHighlightSlotsUpper.contains(slot.index)) {
-                color = COLOR_HIGHLIGHT_UPPER;
-            } else if (backpackHighlightSlotsLower.contains(slot.index)) {
-                color = COLOR_HIGHLIGHT_LOWER;
-            } else {
-                continue;
-            }
             int x = leftPos + slot.x;
             int y = topPos + slot.y;
-            graphics.fill(x, y, x + 16, y + 16, color);
+
+            int fillColor = getBackpackHighlightFillColor(slot.index);
+            if (fillColor != 0) {
+                graphics.fill(x, y, x + 16, y + 16, fillColor);
+            }
+
+            if (backpackHighlightSlotsShiny.contains(slot.index)) {
+                renderShinyBackpackMarker(graphics, x, y);
+            }
         }
+    }
+
+    private int getBackpackHighlightFillColor(int slotIndex) {
+        if (backpackHighlightSlotsTop.contains(slotIndex)) {
+            return COLOR_HIGHLIGHT_TOP;
+        }
+        if (backpackHighlightSlotsUpper.contains(slotIndex)) {
+            return COLOR_HIGHLIGHT_UPPER;
+        }
+        if (backpackHighlightSlotsLower.contains(slotIndex)) {
+            return COLOR_HIGHLIGHT_LOWER;
+        }
+        return 0;
+    }
+
+    private void renderShinyBackpackMarker(GuiGraphics graphics, int x, int y) {
+        graphics.fill(x, y, x + 16, y + 1, COLOR_HIGHLIGHT_SHINY);
+        graphics.fill(x, y + 15, x + 16, y + 16, COLOR_HIGHLIGHT_SHINY);
+        graphics.fill(x, y + 1, x + 1, y + 15, COLOR_HIGHLIGHT_SHINY);
+        graphics.fill(x + 15, y + 1, x + 16, y + 15, COLOR_HIGHLIGHT_SHINY);
+        graphics.blit(SHINY_ICON_TEXTURE,
+                x + 16 - SHINY_ICON_SIZE, y, 0,
+                0.0F, 0.0F, SHINY_ICON_SIZE, SHINY_ICON_SIZE,
+                SHINY_ICON_SIZE, SHINY_ICON_SIZE);
     }
 
     private int computeSlotHash(AbstractContainerMenu menu) {

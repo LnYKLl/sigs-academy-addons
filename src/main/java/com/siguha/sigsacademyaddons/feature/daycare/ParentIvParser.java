@@ -1,5 +1,7 @@
 package com.siguha.sigsacademyaddons.feature.daycare;
 
+import com.cobblemon.mod.common.CobblemonItemComponents;
+import com.cobblemon.mod.common.item.components.PokemonItemComponent;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -9,7 +11,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ParentIvParser {
-
     private static final Pattern IV_SUMMARY_PATTERN =
             Pattern.compile("IVs:\\s*(\\d+)/\\d+\\s*\\((\\d+)%\\)");
 
@@ -22,6 +23,7 @@ public class ParentIvParser {
             Pattern.compile("Held Item:\\s*(.+)");
 
     public static ParentIvData parse(ItemStack stack, String speciesName) {
+        boolean shiny = isShiny(stack);
         ItemLore lore = stack.get(DataComponents.LORE);
         if (lore == null) return null;
 
@@ -72,7 +74,14 @@ public class ParentIvParser {
         }
 
         return new ParentIvData(speciesName, hp, atk, def, spAtk, spDef, spe,
-                ivPercent, mapPowerItem(heldItem));
+                ivPercent, mapPowerItem(heldItem), shiny);
+    }
+
+    private static boolean isShiny(ItemStack stack) {
+        PokemonItemComponent pokemon = stack.get(CobblemonItemComponents.POKEMON_ITEM);
+        return pokemon != null
+                && pokemon.getAspects() != null
+                && pokemon.getAspects().contains("shi");
     }
 
     private static ParentIvData.PowerItemStat mapPowerItem(String heldItem) {

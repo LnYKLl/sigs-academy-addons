@@ -10,9 +10,10 @@ public class ParentIvData {
     private final int hp, atk, def, spAtk, spDef, spe;
     private final int ivPercent;
     private final PowerItemStat powerItemStat;
+    private final boolean shiny;
 
     public ParentIvData(String species, int hp, int atk, int def, int spAtk, int spDef, int spe,
-                        int ivPercent, PowerItemStat powerItemStat) {
+                        int ivPercent, PowerItemStat powerItemStat, boolean shiny) {
         this.species = species;
         this.hp = hp;
         this.atk = atk;
@@ -22,11 +23,13 @@ public class ParentIvData {
         this.spe = spe;
         this.ivPercent = ivPercent;
         this.powerItemStat = powerItemStat;
+        this.shiny = shiny;
     }
 
     public String getSpecies() { return species; }
     public int getIvPercent() { return ivPercent; }
     public PowerItemStat getPowerItemStat() { return powerItemStat; }
+    public boolean isShiny() { return shiny; }
 
     public int getIvForStatRow(int row) {
         return switch (row) {

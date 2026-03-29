@@ -396,7 +396,10 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                     sb.append("\n\u00A77Menu enabled: \u00A7f").append(hudConfig.isDaycareMenuEnabled());
                                     sb.append("\n\u00A77Sounds enabled: \u00A7f").append(hudConfig.isDaycareSoundsEnabled());
                                     sb.append("\n\u00A77Daycare scale: \u00A7f").append(String.format("%.0f%%", hudConfig.getDaycareScale() * 100));
-                                    sb.append("\n\u00A77IV% highlight: \u00A76").append(hudConfig.getDaycareIvPercentLower()).append("%+\u00A77 (orange) / \u00A7b").append(hudConfig.getDaycareIvPercentUpper()).append("%+\u00A77 (blue)");
+                                    sb.append("\n\u00A77IV% highlight: \u00A76").append(hudConfig.getDaycareIvPercentLower())
+                                            .append("%+\u00A77 (orange) / \u00A7b").append(hudConfig.getDaycareIvPercentUpper())
+                                            .append("%+\u00A77 (blue) / \u00A7a").append(hudConfig.getDaycareIvPercentTop())
+                                            .append("%+\u00A77 (green)");
 
                                     context.getSource().sendFeedback(Component.literal(sb.toString()));
                                     return 1;
@@ -654,13 +657,41 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                                                 .executes(context -> {
                                                                     int lower = IntegerArgumentType.getInteger(context, "lowerBound");
                                                                     int upper = IntegerArgumentType.getInteger(context, "upperBound");
+                                                                    if (lower > upper) {
+                                                                        context.getSource().sendFeedback(Component.literal(
+                                                                                "\u00A7cInvalid IV% thresholds. Expected lower <= upper."));
+                                                                        return 0;
+                                                                    }
                                                                     hudConfig.setDaycareIvPercentLower(lower);
                                                                     hudConfig.setDaycareIvPercentUpper(upper);
                                                                     context.getSource().sendFeedback(Component.literal(
                                                                             "\u00A7aIV% thresholds set to \u00A76" + lower
-                                                                            + "%\u00A7a (orange) / \u00A7b" + upper + "%\u00A7a (blue)."));
+                                                                            + "%\u00A7a (orange) / \u00A7b" + upper
+                                                                            + "%\u00A7a (blue). \u00A77Top green threshold remains \u00A7a"
+                                                                            + hudConfig.getDaycareIvPercentTop() + "%\u00A77."));
                                                                     return 1;
                                                                 })
+                                                                .then(ClientCommandManager.argument("topBound", IntegerArgumentType.integer(0, 100))
+                                                                        .executes(context -> {
+                                                                            int lower = IntegerArgumentType.getInteger(context, "lowerBound");
+                                                                            int upper = IntegerArgumentType.getInteger(context, "upperBound");
+                                                                            int top = IntegerArgumentType.getInteger(context, "topBound");
+                                                                            if (lower > upper || upper > top) {
+                                                                                context.getSource().sendFeedback(Component.literal(
+                                                                                        "\u00A7cInvalid IV% thresholds. Expected lower <= upper <= top."));
+                                                                                return 0;
+                                                                            }
+                                                                            hudConfig.setDaycareIvPercentLower(lower);
+                                                                            hudConfig.setDaycareIvPercentUpper(upper);
+                                                                            hudConfig.setDaycareIvPercentTop(top);
+                                                                            context.getSource().sendFeedback(Component.literal(
+                                                                                    "\u00A7aIV% thresholds set to \u00A76" + lower
+                                                                                    + "%\u00A7a (orange) / \u00A7b" + upper
+                                                                                    + "%\u00A7a (blue) / \u00A7a" + top
+                                                                                    + "%\u00A7a (green)."));
+                                                                            return 1;
+                                                                        })
+                                                                )
                                                         )
                                                 )
                                                 .executes(context -> {
@@ -668,7 +699,8 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                                             "\u00A77IV% highlight thresholds:" +
                                                             "\n\u00A76  Orange: \u00A7f" + hudConfig.getDaycareIvPercentLower() + "%+" +
                                                             "\n\u00A7b  Blue: \u00A7f" + hudConfig.getDaycareIvPercentUpper() + "%+" +
-                                                            "\n\u00A77Usage: \u00A7e/saa config daycare ivPercentPreference <lower> <upper>"));
+                                                            "\n\u00A7a  Green: \u00A7f" + hudConfig.getDaycareIvPercentTop() + "%+" +
+                                                            "\n\u00A77Usage: \u00A7e/saa config daycare ivPercentPreference <lower> <upper> [top]"));
                                                     return 1;
                                                 })
                                         )
@@ -679,7 +711,10 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                                     "\n\u00A77soundsEnabled = \u00A7f" + hudConfig.isDaycareSoundsEnabled() +
                                                     "\n\u00A77eggsHatchingSlots = \u00A7f" + hudConfig.getDaycareEggsHatchingSlots() +
                                                     "\n\u00A77babyGuards = \u00A7f" + hudConfig.isDaycareBabyGuards() +
-                                                    "\n\u00A77ivPercentPreference = \u00A76" + hudConfig.getDaycareIvPercentLower() + "%+\u00A77 (orange) / \u00A7b" + hudConfig.getDaycareIvPercentUpper() + "%+\u00A77 (blue)"));
+                                                    "\n\u00A77ivPercentPreference = \u00A76" + hudConfig.getDaycareIvPercentLower()
+                                                    + "%+\u00A77 (orange) / \u00A7b" + hudConfig.getDaycareIvPercentUpper()
+                                                    + "%+\u00A77 (blue) / \u00A7a" + hudConfig.getDaycareIvPercentTop()
+                                                    + "%+\u00A77 (green)"));
                                             return 1;
                                         })
                                 )
@@ -1084,6 +1119,10 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                             "\n\u00A77soundsEnabled = \u00A7f" + hudConfig.isDaycareSoundsEnabled() +
                                             "\n\u00A77eggsHatchingSlots = \u00A7f" + hudConfig.getDaycareEggsHatchingSlots() +
                                             "\n\u00A77babyGuards = \u00A7f" + hudConfig.isDaycareBabyGuards() +
+                                            "\n\u00A77ivPercentPreference = \u00A76" + hudConfig.getDaycareIvPercentLower() +
+                                            "%+\u00A77 (orange) / \u00A7b" + hudConfig.getDaycareIvPercentUpper() +
+                                            "%+\u00A77 (blue) / \u00A7a" + hudConfig.getDaycareIvPercentTop() +
+                                            "%+\u00A77 (green)" +
                                             "\n\n\u00A7e[Wondertrade] \u00A77(/saa config wt)" +
                                             "\n\u00A77menuEnabled = \u00A7f" + hudConfig.isWtMenuEnabled() +
                                             "\n\u00A77showChatReminders = \u00A7f" + hudConfig.isWtShowChatReminders() +
@@ -1240,7 +1279,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                     "\u00A7e/saa config messageNotificationSound <bool>\u00A77 — PM notification sound\n" +
                                     "\u00A7e/saa config autoAcceptPartyInvites <bool>\u00A77 — Auto-accept party invites\n" +
                                     "\u00A7e/saa config safari\u00A77 — Safari config (menuEnabled, timerAlways, questMonGlow)\n" +
-                                    "\u00A7e/saa config daycare\u00A77 — Daycare config (menuEnabled, soundsEnabled, eggsHatchingSlots, babyGuards)\n" +
+                                    "\u00A7e/saa config daycare\u00A77 — Daycare config (menuEnabled, soundsEnabled, eggsHatchingSlots, babyGuards, ivPercentPreference)\n" +
                                     "\u00A7e/saa config wt\u00A77 — Wondertrade config (menuEnabled, showChatReminders, soundsEnabled)\n" +
                                     "\u00A7e/saa config suppress\u00A77 — Suppress config (inRaids, inHideouts, inDungeons, inBattles)\n" +
                                     "\u00A7e/saa config cardstats\u00A77 — Card Stats config (menuEnabled)"

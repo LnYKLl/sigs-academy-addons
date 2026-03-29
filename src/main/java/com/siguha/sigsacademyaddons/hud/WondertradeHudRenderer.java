@@ -205,8 +205,8 @@ public class WondertradeHudRenderer implements HudPanel {
 
     private int calculatePanelWidth(Font font) {
         int maxWidth = PANEL_MIN_WIDTH;
-        maxWidth = Math.max(maxWidth, font.width("SAA Wondertrade Helper") + PADDING * 2);
-        maxWidth = Math.max(maxWidth, font.width("Please use WT once to set menu.") + PADDING * 2);
+        maxWidth = Math.max(maxWidth, font.width(Component.translatable("interface.saa.wondertrade.helper")) + PADDING * 2);
+        maxWidth = Math.max(maxWidth, font.width(Component.translatable("interface.saa.wondertrade.unset")) + PADDING * 2);
 
         return maxWidth + PADDING * 2;
     }

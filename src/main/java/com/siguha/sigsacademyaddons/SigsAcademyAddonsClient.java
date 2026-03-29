@@ -325,7 +325,8 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                     int huntCount = safariHuntManager.getActiveHunts().size();
                                     int pending = safariHuntManager.getPendingUpdates();
 
-                                    StringBuilder sb = new StringBuilder();
+                                    MutableComponent sb = Component.literal("");
+
                                     sb.append(Component.translatable("command.saa.safari.status.title"));
                                     sb.append(Component.translatable("command.saa.safari.status.timer.title"));
                                     sb.append(inSafari ? Component.translatable("command.saa.safari.status.timer.remaining_time", safariManager.getRemainingTimeFormatted()) : Component.translatable("command.saa.safari.status.timer.inactive"));
@@ -376,7 +377,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                     int activeEggs = daycareManager.getTotalActiveEggs();
                                     int maxDisplay = hudConfig.getDaycareEggsHatchingSlots();
 
-                                    StringBuilder sb = new StringBuilder();
+                                    MutableComponent sb = Component.literal("");
                                     sb.append(Component.translatable("command.saa.daycare.status.title"));
                                     sb.append(Component.translatable("command.saa.daycare.status.unlocked_pens", String.valueOf(unlockedPens)));
                                     sb.append(Component.translatable("command.saa.daycare.status.breeding", String.valueOf(breedingPens)));
@@ -422,7 +423,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                         })
                                 )
                                 .executes(context -> {
-                                    StringBuilder sb = new StringBuilder();
+                                    MutableComponent sb = Component.literal("");
                                     sb.append(Component.translatable("command.saa.wondertrade.status.title"));
                                     if (!wondertradeManager.hasTimer()) {
                                         sb.append(Component.translatable("command.saa.wondertrade.status.timer.not_set"));
@@ -460,7 +461,7 @@ public class SigsAcademyAddonsClient implements ClientModInitializer {
                                 )
                                 .executes(context -> {
                                     boolean active = portalManager.isActive();
-                                    StringBuilder sb = new StringBuilder();
+                                    MutableComponent sb = Component.literal("");
                                     sb.append(Component.translatable("command.saa.portal.status.title"));
                                     if (active) {
                                         sb.append(Component.translatable("command.saa.portal.status.tracking", portalManager.getDisplayText()));

@@ -1563,13 +1563,13 @@ public class HudConfigScreen extends Screen {
         int by = 8;
         int buttonH = this.font.lineHeight + BUTTON_PADDING_Y * 2;
 
-        int resetPosW = this.font.width("Reset Positions") + BUTTON_PADDING_X * 2;
+        int resetPosW = this.font.width(Component.translatable("text.saa.reset_pos")) + BUTTON_PADDING_X * 2;
         if (mx >= bx && mx <= bx + resetPosW && my >= by && my <= by + buttonH) {
             return 0;
         }
 
         by += buttonH + BUTTON_SPACING;
-        int resetScaleW = this.font.width("Reset Scale") + BUTTON_PADDING_X * 2;
+        int resetScaleW = this.font.width(Component.translatable("text.saa.reset_scale")) + BUTTON_PADDING_X * 2;
         if (mx >= bx && mx <= bx + resetScaleW && my >= by && my <= by + buttonH) {
             return 1;
         }
@@ -1900,7 +1900,7 @@ public class HudConfigScreen extends Screen {
             return maxWidth + PADDING * 2;
         } else {
             int maxWidth = PANEL_MIN_WIDTH;
-            maxWidth = Math.max(maxWidth, this.font.width("SAA Safari Helper") + PADDING * 2);
+            maxWidth = Math.max(maxWidth, this.font.width(Component.translatable("interface.saa.safari.helper")) + PADDING * 2);
             maxWidth = Math.max(maxWidth, this.font.width("Electric Type") + 8
                     + this.font.width("3h 20m") + PADDING * 2);
             return maxWidth + PADDING * 2;
@@ -1933,7 +1933,7 @@ public class HudConfigScreen extends Screen {
             return maxWidth + PADDING * 2;
         } else {
             int maxWidth = PANEL_MIN_WIDTH;
-            maxWidth = Math.max(maxWidth, this.font.width("SAA Daycare Helper") + PADDING * 2);
+            maxWidth = Math.max(maxWidth, this.font.width(Component.translatable("interface.saa.daycare.helper")) + PADDING * 2);
             maxWidth = Math.max(maxWidth, this.font.width(widestPenLabel) + 4
                     + this.font.width("Eevee") + 8 + this.font.width("~12:34") + PADDING * 2 + 4);
             maxWidth = Math.max(maxWidth, this.font.width("Charmander") + this.font.width("~5:12") + PADDING * 2 + 8);
@@ -1979,8 +1979,8 @@ public class HudConfigScreen extends Screen {
             return this.font.width("WT Time: ") + this.font.width("42:15") + PADDING * 2;
         } else {
             int maxWidth = PANEL_MIN_WIDTH;
-            maxWidth = Math.max(maxWidth, this.font.width("SAA Wondertrade Helper") + PADDING * 2);
-            maxWidth = Math.max(maxWidth, this.font.width("Please use WT once to set menu.") + PADDING * 2);
+            maxWidth = Math.max(maxWidth, this.font.width(Component.translatable("interface.saa.wondertrade.helper")) + PADDING * 2);
+            maxWidth = Math.max(maxWidth, this.font.width(Component.translatable("interface.saa.wondertrade.unset")) + PADDING * 2);
             return maxWidth + PADDING * 2;
         }
     }
@@ -2000,7 +2000,7 @@ public class HudConfigScreen extends Screen {
             return maxWidth + PADDING * 2;
         } else {
             int maxWidth = PANEL_MIN_WIDTH;
-            maxWidth = Math.max(maxWidth, this.font.width("SAA Stats") + PADDING * 2);
+            maxWidth = Math.max(maxWidth, this.font.width(Component.translatable("interface.saa.text.saa_stats")) + PADDING * 2);
             maxWidth = Math.max(maxWidth, this.font.width("Type Spawn Chance") + this.font.width("+3%") + PADDING * 2 + 8);
             return maxWidth + PADDING * 2;
         }

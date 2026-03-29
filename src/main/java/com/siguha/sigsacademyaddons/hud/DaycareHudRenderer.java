@@ -447,7 +447,7 @@ public class DaycareHudRenderer implements HudPanel {
 
             case NEEDS_RESET -> {
                 String species = getPenSpeciesLabel(pen);
-                String resetText = "Parents Need Reset!";
+                Component resetText = Component.translatable("interface.saa.daycare.parent_reset");
 
                 graphics.drawString(font, penLabel, PADDING + 2, y, COLOR_PEN_LABEL, true);
                 graphics.drawString(font, species, textX, y, COLOR_TEXT_PRIMARY, true);
@@ -582,7 +582,7 @@ public class DaycareHudRenderer implements HudPanel {
                                      int totalActiveEggs, int maxDisplayEggs) {
         int maxWidth = PANEL_MIN_WIDTH;
 
-        maxWidth = Math.max(maxWidth, font.width("SAA Daycare Helper") + PADDING * 2);
+        maxWidth = Math.max(maxWidth, font.width(Component.translatable("interface.saa.daycare.helper")) + PADDING * 2);
 
         for (DaycareState.PenState pen : pens) {
             String penLabel = "[PEN " + pen.getPenNumber() + "]";
@@ -595,14 +595,14 @@ public class DaycareHudRenderer implements HudPanel {
 
             } else if (stage == DaycareState.BreedingStage.NEEDS_RESET) {
                 lineWidth = font.width(penLabel) + 4 + font.width(species)
-                        + 8 + font.width("Parents Need Reset!");
+                        + 8 + font.width(Component.translatable("interface.saa.daycare.parent_reset"));
 
             } else if (stage == DaycareState.BreedingStage.INCOMPATIBLE) {
                 lineWidth = font.width(penLabel) + 4 + font.width("Incompatible Setup");
 
             } else {
                 String timer = pen.getRemainingFormatted();
-                int rightWidth = Math.max(font.width(timer), font.width("Parents Need Reset!"));
+                int rightWidth = Math.max(font.width(timer), font.width(Component.translatable("interface.saa.daycare.parent_reset")));
                 lineWidth = font.width(penLabel) + 4 + font.width(species) + 8 + rightWidth;
 
             }
@@ -722,7 +722,7 @@ public class DaycareHudRenderer implements HudPanel {
             case NEEDS_RESET -> {
                 String species = getPenSpeciesLabel(pen);
                 int speciesW = font.width(species);
-                int resetW = font.width("Parents Need Reset!");
+                int resetW = font.width(Component.translatable("interface.saa.daycare.parent_reset"));
                 int textLines = (speciesW + 8 + resetW <= available) ? LINE_HEIGHT : LINE_HEIGHT * 2;
                 return textLines + TIMER_BAR_HEIGHT + 2;
             }

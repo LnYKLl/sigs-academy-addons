@@ -154,6 +154,7 @@
     "interface.saa.daycare.empty_full": "Veuillez charger tous les enclos de la daycare pour charger les données.",
     "interface.saa.daycare.empty_compact": "Veuillez charger tous les enclos de la daycare pour charger les données.",
     "interface.saa.daycare.helper": "Assistant de daycare SAA.",
+    "interface.saa.daycare.parent_reset": "Réinitialisation nécessaire",
 
     "interface.saa.safari.no_quest": "Veuillez rendre visite au PNJ de chasse Safari et charger votre menu de chasse.",
     "interface.saa.safari.helper": "Assistant Safari SAA.",

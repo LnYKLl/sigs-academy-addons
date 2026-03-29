@@ -154,6 +154,7 @@
     "interface.saa.daycare.empty_full": "Please load all daycare pens to load data.",
     "interface.saa.daycare.empty_compact": "Please load all daycare pens to load data.",
     "interface.saa.daycare.helper": "SAA Daycare Helper.",
+    "interface.saa.daycare.parent_reset": "Parents need reset!",
 
     "interface.saa.safari.no_quest": "Please visit the Safari Hunt NPC and load your hunt menu.",
     "interface.saa.safari.helper": "SAA Safari Helper.",

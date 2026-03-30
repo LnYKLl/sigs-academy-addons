@@ -722,7 +722,7 @@ public class ScreenInterceptor {
         ContainerScreenAccessor accessor = (ContainerScreenAccessor) containerScreen;
         Font font = Minecraft.getInstance().font;
 
-        String label = "Highlighting " + config.getDaycareIvPercentLower() + "%+ IVs and shiny";
+        String label = "Highlighting " + config.getDaycareIvPercentLower() + "%+ IVs";
         int textWidth = font.width(label);
         int containerRight = accessor.getLeftPos() + accessor.getImageWidth();
 

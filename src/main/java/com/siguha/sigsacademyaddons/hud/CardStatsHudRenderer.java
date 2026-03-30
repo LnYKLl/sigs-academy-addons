@@ -211,15 +211,8 @@ public class CardStatsHudRenderer implements HudPanel {
         List<StatEntry> playerStats = cardStatsManager.getPlayerStats();
         List<StatEntry> cardStatsList = cardStatsManager.getCardStats();
 
-        for (StatEntry entry : playerStats) {
-            int lineWidth = font.width(entry.displayName()) + 8 + font.width(CardStatsManager.formatValue(entry));
-            maxWidth = Math.max(maxWidth, lineWidth + PADDING * 2 + 2);
-        }
-
-        for (StatEntry entry : cardStatsList) {
-            int lineWidth = font.width(entry.displayName()) + 8 + font.width(CardStatsManager.formatValue(entry));
-            maxWidth = Math.max(maxWidth, lineWidth + PADDING * 2 + 2);
-        }
+        maxWidth = expandMaxWidth(font, maxWidth, playerStats);
+        maxWidth = expandMaxWidth(font, maxWidth, cardStatsList);
 
         String header = "SAA Stats";
         maxWidth = Math.max(maxWidth, font.width(header) + PADDING * 2);
@@ -262,15 +255,8 @@ public class CardStatsHudRenderer implements HudPanel {
         maxWidth = Math.max(maxWidth, font.width("Player") + PADDING * 2);
         maxWidth = Math.max(maxWidth, font.width("Cards") + PADDING * 2);
 
-        for (StatEntry entry : playerStats) {
-            int lineWidth = font.width(entry.displayName()) + 8 + font.width(CardStatsManager.formatValue(entry));
-            maxWidth = Math.max(maxWidth, lineWidth + PADDING * 2 + 2);
-        }
-
-        for (StatEntry entry : cardStatsList) {
-            int lineWidth = font.width(entry.displayName()) + 8 + font.width(CardStatsManager.formatValue(entry));
-            maxWidth = Math.max(maxWidth, lineWidth + PADDING * 2 + 2);
-        }
+        maxWidth = expandMaxWidth(font, maxWidth, playerStats);
+        maxWidth = expandMaxWidth(font, maxWidth, cardStatsList);
 
         return maxWidth;
     }
@@ -304,8 +290,7 @@ public class CardStatsHudRenderer implements HudPanel {
             height += 2 + SECTION_SPACING;
             height += LINE_HEIGHT;
             for (StatEntry entry : playerStats) {
-                height += HudTextUtil.statLineHeight(font, entry.displayName(),
-                        CardStatsManager.formatValue(entry), panelWidth, PADDING, LINE_HEIGHT);
+                height += statLineHeight(font, panelWidth, entry);
             }
         }
 
@@ -313,8 +298,7 @@ public class CardStatsHudRenderer implements HudPanel {
             height += 2 + SECTION_SPACING;
             height += LINE_HEIGHT;
             for (StatEntry entry : cardStatsList) {
-                height += HudTextUtil.statLineHeight(font, entry.displayName(),
-                        CardStatsManager.formatValue(entry), panelWidth, PADDING, LINE_HEIGHT);
+                height += statLineHeight(font, panelWidth, entry);
             }
         }
 
@@ -331,19 +315,36 @@ public class CardStatsHudRenderer implements HudPanel {
         if (!playerStats.isEmpty()) {
             height += LINE_HEIGHT;
             for (StatEntry entry : playerStats) {
-                height += HudTextUtil.statLineHeight(font, entry.displayName(),
-                        CardStatsManager.formatValue(entry), panelWidth, PADDING, LINE_HEIGHT);
+                height += statLineHeight(font, panelWidth, entry);
             }
         }
         if (!cardStatsList.isEmpty()) {
             height += LINE_HEIGHT;
             for (StatEntry entry : cardStatsList) {
-                height += HudTextUtil.statLineHeight(font, entry.displayName(),
-                        CardStatsManager.formatValue(entry), panelWidth, PADDING, LINE_HEIGHT);
+                height += statLineHeight(font, panelWidth, entry);
             }
         }
         height += PADDING;
         return height;
+    }
+
+    private int expandMaxWidth(Font font, int currentMaxWidth, List<StatEntry> stats) {
+        int maxWidth = currentMaxWidth;
+        for (StatEntry entry : stats) {
+            maxWidth = Math.max(maxWidth, statLineWidth(font, entry));
+        }
+        return maxWidth;
+    }
+
+    private int statLineWidth(Font font, StatEntry entry) {
+        String value = CardStatsManager.formatValue(entry);
+        int lineWidth = font.width(entry.displayName()) + 8 + font.width(value);
+        return lineWidth + PADDING * 2 + 2;
+    }
+
+    private int statLineHeight(Font font, int panelWidth, StatEntry entry) {
+        return HudTextUtil.statLineHeight(font, entry.displayName(),
+                CardStatsManager.formatValue(entry), panelWidth, PADDING, LINE_HEIGHT);
     }
 
     public void renderInInventory(GuiGraphics graphics, int invLeftPos, int invTopPos, int invImageHeight) {

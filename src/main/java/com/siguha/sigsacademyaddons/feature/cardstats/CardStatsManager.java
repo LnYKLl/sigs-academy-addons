@@ -6,7 +6,6 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.ai.attributes.Attribute;
@@ -16,13 +15,22 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import java.util.regex.Pattern;
 
 public class CardStatsManager {
 
     private static final int SCAN_INTERVAL_TICKS = 100;
     private static final String CARD_ALBUM_ID = "academy:card_album";
     private static final String ACADEMY_MODIFIER_NAMESPACE = "academy";
+    private static final Pattern TIER_SUFFIX_PATTERN = Pattern.compile("_t\\d+$");
+    private static final Map<String, String> DETAIL_DISPLAY_NAMES = new LinkedHashMap<>();
 
     private static final Map<String, String> STAT_DISPLAY_NAMES = new LinkedHashMap<>();
 
@@ -55,6 +63,13 @@ public class CardStatsManager {
         STAT_DISPLAY_NAMES.put("type_spawn_chance", "Type Spawn Chance");
         STAT_DISPLAY_NAMES.put("ev_yield", "EV Yield");
         STAT_DISPLAY_NAMES.put("rare_shiny_chance", "Rare Shiny Chance");
+
+        DETAIL_DISPLAY_NAMES.put("hp", "HP");
+        DETAIL_DISPLAY_NAMES.put("attack", "Attack");
+        DETAIL_DISPLAY_NAMES.put("defence", "Defense");
+        DETAIL_DISPLAY_NAMES.put("special_attack", "Sp. Attack");
+        DETAIL_DISPLAY_NAMES.put("special_defence", "Sp. Defense");
+        DETAIL_DISPLAY_NAMES.put("speed", "Speed");
     }
 
     public record StatEntry(String displayName, double value, AttributeModifier.Operation operation) {}
@@ -62,6 +77,7 @@ public class CardStatsManager {
     private volatile List<StatEntry> playerStats = Collections.emptyList();
     private volatile List<StatEntry> cardStats = Collections.emptyList();
     private volatile boolean hasCardAlbum = false;
+    private final CardStatInterpreter cardStatInterpreter = new CardStatInterpreter();
     private int tickCounter = 0;
 
     @SuppressWarnings("unchecked")
@@ -175,21 +191,8 @@ public class CardStatsManager {
     }
 
     private List<StatEntry> parseCardAlbumNbt(CompoundTag root) {
-        Map<String, Double> cobblemonStats = new LinkedHashMap<>();
-
-        CompoundTag components = root.getCompound("components");
-        if (components.isEmpty()) return Collections.emptyList();
-
-        CompoundTag container = findContainerTag(components);
-        if (container == null || !container.contains("items", Tag.TAG_LIST)) {
-            return Collections.emptyList();
-        }
-
-        ListTag items = container.getList("items", Tag.TAG_COMPOUND);
-        for (int i = 0; i < items.size(); i++) {
-            CompoundTag cardEntry = items.getCompound(i);
-            parseCardEntry(cardEntry, cobblemonStats);
-        }
+        Map<String, Double> cobblemonStats = cardStatInterpreter.collectCardStats(root);
+        if (cobblemonStats.isEmpty()) return Collections.emptyList();
 
         List<StatEntry> stats = new ArrayList<>();
         for (Map.Entry<String, Double> entry : cobblemonStats.entrySet()) {
@@ -198,103 +201,6 @@ public class CardStatsManager {
                     AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
         }
         return stats;
-    }
-
-    private CompoundTag findContainerTag(CompoundTag components) {
-        if (components.contains("academy:card_album_container", Tag.TAG_COMPOUND)) {
-            return components.getCompound("academy:card_album_container");
-        }
-        for (String key : components.getAllKeys()) {
-            if (key.contains("card_album_container")) {
-                Tag tag = components.get(key);
-                if (tag instanceof CompoundTag ct) return ct;
-            }
-        }
-        return null;
-    }
-
-    private void parseCardEntry(CompoundTag cardEntry, Map<String, Double> cobblemonStats) {
-        CompoundTag cardData = findCardData(cardEntry);
-        if (cardData == null) return;
-
-        if (!cardData.contains("modifiers", Tag.TAG_LIST)) return;
-
-        ListTag modifiers = cardData.getList("modifiers", Tag.TAG_COMPOUND);
-        for (int j = 0; j < modifiers.size(); j++) {
-            CompoundTag modifier = modifiers.getCompound(j);
-            String source = modifier.getString("source");
-            if (source.isEmpty()) continue;
-
-            if (source.startsWith("minecraft:")) continue;
-
-            String baseStatKey = stripTierSuffix(source);
-            double value = extractModifierValue(modifier);
-
-            cobblemonStats.merge(baseStatKey, value, Double::sum);
-        }
-    }
-
-    private CompoundTag findCardData(CompoundTag cardEntry) {
-        if (cardEntry.contains("nbt", Tag.TAG_COMPOUND)) {
-            CompoundTag nbt = cardEntry.getCompound("nbt");
-            if (nbt.contains("academy:card", Tag.TAG_COMPOUND)) {
-                return nbt.getCompound("academy:card");
-            }
-            for (String key : nbt.getAllKeys()) {
-                if (key.contains("card") && !key.contains("container") && !key.contains("album")) {
-                    Tag tag = nbt.get(key);
-                    if (tag instanceof CompoundTag ct && ct.contains("modifiers")) return ct;
-                }
-            }
-        }
-
-        if (cardEntry.contains("components", Tag.TAG_COMPOUND)) {
-            CompoundTag comps = cardEntry.getCompound("components");
-            if (comps.contains("academy:card", Tag.TAG_COMPOUND)) {
-                return comps.getCompound("academy:card");
-            }
-            for (String key : comps.getAllKeys()) {
-                if (key.contains("card") && !key.contains("container") && !key.contains("album")) {
-                    Tag tag = comps.get(key);
-                    if (tag instanceof CompoundTag ct && ct.contains("modifiers")) return ct;
-                }
-            }
-        }
-
-        if (cardEntry.contains("academy:card", Tag.TAG_COMPOUND)) {
-            return cardEntry.getCompound("academy:card");
-        }
-
-        return null;
-    }
-
-    private double extractModifierValue(CompoundTag modifier) {
-        if (!modifier.contains("attribute", Tag.TAG_COMPOUND)) return 0;
-        CompoundTag attribute = modifier.getCompound("attribute");
-
-        if (!attribute.contains("value", Tag.TAG_COMPOUND)) return 0;
-        CompoundTag value = attribute.getCompound("value");
-
-        if (!value.contains("modifiers", Tag.TAG_LIST)) return 0;
-        ListTag valueMods = value.getList("modifiers", Tag.TAG_COMPOUND);
-
-        for (int k = 0; k < valueMods.size(); k++) {
-            CompoundTag valueMod = valueMods.getCompound(k);
-            String type = valueMod.getString("type");
-            if (type.equals("assign")) {
-                if (valueMod.contains("value", Tag.TAG_COMPOUND)) {
-                    CompoundTag assignValue = valueMod.getCompound("value");
-                    if (assignValue.contains("value")) {
-                        return assignValue.getDouble("value");
-                    }
-                }
-                if (valueMod.contains("value")) {
-                    return valueMod.getDouble("value");
-                }
-            }
-        }
-
-        return 0;
     }
 
     private ItemStack findCardAlbum(LocalPlayer player) {
@@ -310,7 +216,7 @@ public class CardStatsManager {
     }
 
     static String stripTierSuffix(String source) {
-        return source.replaceAll("_t\\d+$", "");
+        return TIER_SUFFIX_PATTERN.matcher(source).replaceFirst("");
     }
 
     static String extractStatKey(String path) {
@@ -322,10 +228,34 @@ public class CardStatsManager {
     }
 
     static String getDisplayName(String statKey) {
+        int slash = statKey.indexOf('/');
+        if (slash >= 0) {
+            String baseKey = statKey.substring(0, slash);
+            String detailKey = statKey.substring(slash + 1);
+            String baseName = STAT_DISPLAY_NAMES.getOrDefault(baseKey, prettifySegment(baseKey));
+            return baseName + " (" + prettifyDetail(detailKey) + ")";
+        }
+
         String name = STAT_DISPLAY_NAMES.get(statKey);
         if (name != null) return name;
 
-        String[] parts = statKey.split("_");
+        return prettifySegment(statKey);
+    }
+
+    private static String prettifyDetail(String detailKey) {
+        int namespace = detailKey.indexOf(':');
+        if (namespace >= 0) {
+            detailKey = detailKey.substring(namespace + 1);
+        }
+
+        String detailName = DETAIL_DISPLAY_NAMES.get(detailKey);
+        if (detailName != null) return detailName;
+
+        return prettifySegment(detailKey);
+    }
+
+    private static String prettifySegment(String key) {
+        String[] parts = key.split("_");
         StringBuilder sb = new StringBuilder();
         for (String part : parts) {
             if (!part.isEmpty()) {
@@ -339,18 +269,24 @@ public class CardStatsManager {
 
     public static String formatValue(StatEntry entry) {
         double value = entry.value();
-        if (entry.operation() == AttributeModifier.Operation.ADD_MULTIPLIED_BASE
-                || entry.operation() == AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL) {
-            double pct = value * 100.0;
-            if (pct == Math.floor(pct)) {
-                return String.format("+%.0f%%", pct);
-            }
-            return String.format("+%.1f%%", pct);
+        if (isPercentageOperation(entry.operation())) {
+            return formatSignedValue(value * 100.0, "+%.0f%%", "+%.1f%%");
         }
-        if (value == Math.floor(value)) {
-            return String.format("+%.0f", value);
-        }
-        return String.format("+%.2f", value);
+        return formatSignedValue(value, "+%.0f", "+%.2f");
+    }
+
+    private static boolean isPercentageOperation(AttributeModifier.Operation operation) {
+        return operation == AttributeModifier.Operation.ADD_MULTIPLIED_BASE
+                || operation == AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL;
+    }
+
+    private static String formatSignedValue(double value, String wholeFormat, String fractionalFormat) {
+        String format = isWholeNumber(value) ? wholeFormat : fractionalFormat;
+        return String.format(Locale.ROOT, format, value);
+    }
+
+    private static boolean isWholeNumber(double value) {
+        return value == Math.floor(value);
     }
 
     public List<StatEntry> getPlayerStats() {
